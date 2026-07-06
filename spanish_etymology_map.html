@@ -226,7 +226,7 @@
       <div class="grid grid-cols-2 gap-3">
         <div><label class="text-xs text-slate-400 block mb-1">单词 Palabra *</label><input id="add-word" type="text" placeholder="如 helado" class="w-full rounded-lg px-3 py-2"></div>
         <div><label class="text-xs text-slate-400 block mb-1">词性 POS</label>
-          <select id="add-pos" class="w-full rounded-lg px-3 py-2"><option value="">—</option><option>sustantivo</option><option>verbo</option><option>adjetivo</option><option>adverbio</option><option>pronombre</option><option>preposición</option><option>conjunción</option><option>artículo</option><option>numeral</option><option>interjección</option><option>sufijo</option><option>prefijo</option><option>raíz</option></select></div>
+          <select id="add-pos" class="w-full rounded-lg px-3 py-2"><option value="">—</option><option>名词</option><option>动词</option><option>形容词</option><option>副词</option><option>代词</option><option>介词</option><option>连词</option><option>冠词</option><option>数词</option><option>感叹词</option><option>后缀</option><option>前缀</option><option>词根</option></select></div>
       </div>
       <div class="grid grid-cols-3 gap-3">
         <div><label class="text-xs text-slate-400 block mb-1">词根 Raíz</label><input id="add-root" type="text" placeholder="hel-" class="w-full rounded-lg px-3 py-2"></div>
@@ -426,35 +426,35 @@
 
 // ----- A-Z 字母音形义数据（源自设计文档：史源/音感/字形意象）-----
 const LETTERS = [
-  { c:'A', sound:'/a/', proto:'aleph（牛头）', action:'张口、开放、强烈', image:'牛角、山峰、顶点、打开、开始', group:'Vocales' },
-  { c:'B', sound:'/be/', proto:'beth（房屋）', action:'双唇闭合爆破，浊而饱满', image:'房屋、身体、鼓包、弹跳、容纳', group:'Bilabiales' },
-  { c:'C', sound:'/θ//k//s/', proto:'gimel（投掷棒）', action:'/k/硬短切断；/s/细滑嘶响', image:'开口圆环、容器、弯曲；一字多音', group:'Velares' },
-  { c:'D', sound:'/de/', proto:'daleth（门）', action:'舌尖闭塞后释放，敲击推进', image:'门、边界、落下、打击、方向', group:'Dentales' },
-  { c:'E', sound:'/e/', proto:'he（窗）', action:'前元音，较轻、近', image:'延伸、能量、展开；层级', group:'Vocales' },
-  { c:'F', sound:'/efe/', proto:'waw（钩子）', action:'持续吹气摩擦，轻散流动', image:'风、火焰、飞散；fl-流动感', group:'Fricativas' },
-  { c:'G', sound:'/xe//ge/', proto:'由C加横笔', action:'/g/厚重；/x/骤然后部摩擦', image:'抓握、重力、研磨；gr-粗糙', group:'Velares' },
-  { c:'H', sound:'∅（哑音）', proto:'ḥēt（院墙）', action:'历史上呼气，现已沉默', image:'呼吸、热、空、气流、围栏；f→h痕迹', group:'Fricativas' },
-  { c:'I', sound:'/i/', proto:'yod（手）', action:'高前元音，小、细、亮', image:'细线、个体、针、竖立', group:'Vocales' },
-  { c:'J', sound:'/xe/', proto:'由I分化', action:'后部强烈摩擦', image:'跳跃、戳击、急转', group:'Velares' },
-  { c:'K', sound:'/ka/', proto:'kaph（手掌）', action:'无声软腭塞音，干脆尖硬', image:'切、撞、裂（借词为主）', group:'Velares' },
-  { c:'L', sound:'/ele/', proto:'lamed（牧杖）', action:'气流从舌侧平滑流过，柔滑连续', image:'线、长、流、柔和', group:'Líquidas' },
-  { c:'M', sound:'/eme/', proto:'mem（水）', action:'闭唇鼻音，低沉温和包裹', image:'水波、母体、柔软、团块', group:'Bilabiales' },
-  { c:'N', sound:'/ene/', proto:'nun（鱼/蛇）', action:'鼻音，连续但更细更内收', image:'内部、狭窄、巢穴、连续', group:'Dentales' },
-  { c:'Ñ', sound:'/ɲe/', proto:'NN 缩合', action:'舌面鼻塞音，腭化共鸣', image:'波浪、柔软、温暖（西语特有）', group:'Palatales' },
-  { c:'O', sound:'/o/', proto:'ʿayin（眼）', action:'圆唇后元音，圆大完整', image:'眼睛、圆、洞、整体、循环', group:'Vocales' },
-  { c:'P', sound:'/pe/', proto:'pe（嘴）', action:'双唇无声爆破，轻爆弹出', image:'嘴、点、针刺、爆开', group:'Bilabiales' },
-  { c:'Q', sound:'/ke/', proto:'qoph（针眼）', action:'/k/ + 滑音（que/qui 中u不发音）', image:'孔、快速（仅用于que/qui）', group:'Velares' },
-  { c:'R', sound:'/erre/', proto:'resh（头）', action:'颤音，滚动摩擦粗糙有力', image:'头、滚动、撕裂、粗糙、吼叫', group:'Líquidas' },
-  { c:'S', sound:'/ese/', proto:'shin（牙）', action:'持续嘶响，可滑行穿行', image:'蛇、流线、速度、滑动', group:'Fricativas' },
-  { c:'T', sound:'/te/', proto:'taw（记号）', action:'舌尖迅速闭塞，短尖准确', image:'点、顶端、敲击、刻度', group:'Dentales' },
-  { c:'U', sound:'/u/', proto:'与V同源', action:'圆唇后元音，深圆饱满', image:'杯、凹槽、容纳', group:'Vocales' },
-  { c:'V', sound:'/be/', proto:'与U同源', action:'（西语中与B同音）', image:'震动、速度、尖谷', group:'Bilabiales' },
-  { c:'W', sound:'/uve doble/', proto:'double U', action:'/w/圆唇滑向元音', image:'波浪、风、旋转（借词）', group:'Raras' },
-  { c:'X', sound:'/eks//ks/', proto:'西部希腊字母', action:'/ks/两辅音压缩收束', image:'交叉、切割、未知、混合', group:'Raras' },
-  { c:'Y', sound:'/je//i/', proto:'upsilon', action:'/j/滑音；亦表元音', image:'分叉、选择、道路', group:'Palatales' },
-  { c:'Z', sound:'/θe//se/', proto:'zayin（武器）', action:'持续有声摩擦，蜂鸣', image:'锯齿、之字、快速', group:'Fricativas' },
+  { c:'A', sound:'/a/', proto:'aleph（牛头）', action:'张口、开放、强烈', image:'牛角、山峰、顶点、打开、开始', group:'元音' },
+  { c:'B', sound:'/be/', proto:'beth（房屋）', action:'双唇闭合爆破，浊而饱满', image:'房屋、身体、鼓包、弹跳、容纳', group:'双唇音' },
+  { c:'C', sound:'/θ//k//s/', proto:'gimel（投掷棒）', action:'/k/硬短切断；/s/细滑嘶响', image:'开口圆环、容器、弯曲；一字多音', group:'软腭音' },
+  { c:'D', sound:'/de/', proto:'daleth（门）', action:'舌尖闭塞后释放，敲击推进', image:'门、边界、落下、打击、方向', group:'齿音' },
+  { c:'E', sound:'/e/', proto:'he（窗）', action:'前元音，较轻、近', image:'延伸、能量、展开；层级', group:'元音' },
+  { c:'F', sound:'/efe/', proto:'waw（钩子）', action:'持续吹气摩擦，轻散流动', image:'风、火焰、飞散；fl-流动感', group:'擦音' },
+  { c:'G', sound:'/xe//ge/', proto:'由C加横笔', action:'/g/厚重；/x/骤然后部摩擦', image:'抓握、重力、研磨；gr-粗糙', group:'软腭音' },
+  { c:'H', sound:'∅（哑音）', proto:'ḥēt（院墙）', action:'历史上呼气，现已沉默', image:'呼吸、热、空、气流、围栏；f→h痕迹', group:'擦音' },
+  { c:'I', sound:'/i/', proto:'yod（手）', action:'高前元音，小、细、亮', image:'细线、个体、针、竖立', group:'元音' },
+  { c:'J', sound:'/xe/', proto:'由I分化', action:'后部强烈摩擦', image:'跳跃、戳击、急转', group:'软腭音' },
+  { c:'K', sound:'/ka/', proto:'kaph（手掌）', action:'无声软腭塞音，干脆尖硬', image:'切、撞、裂（借词为主）', group:'软腭音' },
+  { c:'L', sound:'/ele/', proto:'lamed（牧杖）', action:'气流从舌侧平滑流过，柔滑连续', image:'线、长、流、柔和', group:'流音' },
+  { c:'M', sound:'/eme/', proto:'mem（水）', action:'闭唇鼻音，低沉温和包裹', image:'水波、母体、柔软、团块', group:'双唇音' },
+  { c:'N', sound:'/ene/', proto:'nun（鱼/蛇）', action:'鼻音，连续但更细更内收', image:'内部、狭窄、巢穴、连续', group:'齿音' },
+  { c:'Ñ', sound:'/ɲe/', proto:'NN 缩合', action:'舌面鼻塞音，腭化共鸣', image:'波浪、柔软、温暖（西语特有）', group:'腭音' },
+  { c:'O', sound:'/o/', proto:'ʿayin（眼）', action:'圆唇后元音，圆大完整', image:'眼睛、圆、洞、整体、循环', group:'元音' },
+  { c:'P', sound:'/pe/', proto:'pe（嘴）', action:'双唇无声爆破，轻爆弹出', image:'嘴、点、针刺、爆开', group:'双唇音' },
+  { c:'Q', sound:'/ke/', proto:'qoph（针眼）', action:'/k/ + 滑音（que/qui 中u不发音）', image:'孔、快速（仅用于que/qui）', group:'软腭音' },
+  { c:'R', sound:'/erre/', proto:'resh（头）', action:'颤音，滚动摩擦粗糙有力', image:'头、滚动、撕裂、粗糙、吼叫', group:'流音' },
+  { c:'S', sound:'/ese/', proto:'shin（牙）', action:'持续嘶响，可滑行穿行', image:'蛇、流线、速度、滑动', group:'擦音' },
+  { c:'T', sound:'/te/', proto:'taw（记号）', action:'舌尖迅速闭塞，短尖准确', image:'点、顶端、敲击、刻度', group:'齿音' },
+  { c:'U', sound:'/u/', proto:'与V同源', action:'圆唇后元音，深圆饱满', image:'杯、凹槽、容纳', group:'元音' },
+  { c:'V', sound:'/be/', proto:'与U同源', action:'（西语中与B同音）', image:'震动、速度、尖谷', group:'双唇音' },
+  { c:'W', sound:'/uve doble/', proto:'double U', action:'/w/圆唇滑向元音', image:'波浪、风、旋转（借词）', group:'罕见/借词' },
+  { c:'X', sound:'/eks//ks/', proto:'西部希腊字母', action:'/ks/两辅音压缩收束', image:'交叉、切割、未知、混合', group:'罕见/借词' },
+  { c:'Y', sound:'/je//i/', proto:'upsilon', action:'/j/滑音；亦表元音', image:'分叉、选择、道路', group:'腭音' },
+  { c:'Z', sound:'/θe//se/', proto:'zayin（武器）', action:'持续有声摩擦，蜂鸣', image:'锯齿、之字、快速', group:'擦音' },
 ];
-const LETTER_GROUPS_ORDER = ['Vocales','Bilabiales','Dentales','Velares','Palatales','Fricativas','Líquidas','Raras'];
+const LETTER_GROUPS_ORDER = ['元音','双唇音','齿音','软腭音','腭音','擦音','流音','罕见/借词'];
 
 // ----- 拉丁语→西班牙语历史音变规则（= 造物主矩阵）-----
 const SOUND_CHANGES = [
@@ -814,6 +814,14 @@ function updateAIButton() { const b = document.getElementById('ai-btn'); if (b) 
 function getLetter(word) { return word ? word.charAt(0).toUpperCase() : '?'; }
 function getRootKey(entry) { return entry.root || (entry.word ? entry.word.slice(0,3) : ''); }
 function escapeHtml(s) { return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+// 词性徽章配色（参考韩语 posBadgeClass）
+function posBadgeClass(pos) {
+  const m = { '名词':'bg-[#a855f7]/15 text-[#d8b4fe] border-[#a855f7]/30', '代词':'bg-[#a855f7]/15 text-[#d8b4fe] border-[#a855f7]/30', '数词':'bg-[#a855f7]/15 text-[#d8b4fe] border-[#a855f7]/30',
+    '动词':'bg-[#fb7185]/15 text-[#fda4af] border-[#fb7185]/30', '形容词':'bg-[#34d399]/15 text-[#6ee7b7] border-[#34d399]/30', '副词':'bg-[#22d3ee]/15 text-[#67e8f9] border-[#22d3ee]/30',
+    '后缀':'bg-[#fbbf24]/20 text-[#fde68a] border-[#fbbf24]/40', '前缀':'bg-[#fb923c]/15 text-[#fdba74] border-[#fb923c]/30', '词根':'bg-[#38bdf8]/15 text-[#7dd3fc] border-[#38bdf8]/30',
+    '介词':'bg-white/5 text-slate-300 border-white/15', '连词':'bg-white/5 text-slate-300 border-white/15', '冠词':'bg-white/5 text-slate-300 border-white/15', '感叹词':'bg-white/5 text-slate-300 border-white/15' };
+  return m[pos] || 'bg-white/5 text-slate-300 border-white/15';
+}
 function getEntriesForRoot(root) {
   return state.entries.filter(e => getRootKey(e) === root).sort((a,b) => (a.word||'').localeCompare(b.word||'','es'));
 }
@@ -969,7 +977,7 @@ function renderLetterGrid() {
   };
   let html = '<div class="flex flex-wrap items-center gap-2">';
   LETTER_GROUPS_ORDER.forEach(g => {
-    const color = { 'Vocales':'#a78bfa','Bilabiales':'#fbbf24','Dentales':'#34d399','Velares':'#38bdf8','Palatales':'#f43f5e','Fricativas':'#fb923c','Líquidas':'#a855f7','Raras':'#64748b' }[g] || '#94a3b8';
+    const color = { '元音':'#a78bfa','双唇音':'#fbbf24','齿音':'#34d399','软腭音':'#38bdf8','腭音':'#f43f5e','擦音':'#fb923c','流音':'#a855f7','罕见/借词':'#64748b' }[g] || '#94a3b8';
     const btns = LETTERS.filter(L => L.group === g).map(btn).join('');
     html += groupChip(g, color, btns);
   });
@@ -1019,13 +1027,21 @@ function renderRootsList() {
   countEl.textContent = `${roots.length} 词根 · ${state.entries.filter(e=>getLetter(e.word)===state.filter.letter).length} 词条`;
   container.innerHTML = roots.length ? roots.map(([r,c]) => rootItemHtml(r,c,state.highlightRoot===r)).join('') : emptyHint(`${state.filter.letter} 暂无词条`,'');
 }
+function getRootMeta(root) {
+  // 聚合该词根下的元信息（取第一个有值的词条）
+  const entries = state.entries.filter(e => getRootKey(e) === root);
+  const e0 = entries.find(e => e.rootMeaning) || entries[0] || {};
+  return { rootMeaning: e0.rootMeaning||'', latinOrigin: e0.latinOrigin||'', count: entries.length };
+}
 function rootItemHtml(root, count, isActive) {
   const safe = escapeHtml(root).replace(/'/g,"\\'");
-  return `<div class="root-item ${isActive?'active':''} px-3 py-2 rounded-lg" onclick="selectRoot('${safe}')" ondblclick="dblClickRoot('${safe}')">
+  const meta = getRootMeta(root);
+  return `<div class="root-item ${isActive?'active':''} px-3 py-2 rounded-lg" onclick="selectRoot('${safe}')" ondblclick="dblClickRoot('${safe}')" title="${escapeHtml(meta.rootMeaning||'')}">
     <div class="flex items-baseline justify-between gap-2">
       <span class="text-base font-bold text-white">${escapeHtml(root)}</span>
       <span class="text-[10px] text-slate-500">${count}</span>
     </div>
+    ${meta.rootMeaning?`<div class="text-[10px] text-slate-400 truncate">${escapeHtml(meta.rootMeaning)}</div>`:''}
   </div>`;
 }
 
@@ -1037,18 +1053,26 @@ function renderWordsList() {
   const titleEl = document.getElementById('words-title');
   const countEl = document.getElementById('words-count');
   const tagPills = (e) => (e.tags||[]).slice(0,3).map(t => { const ch = getTagChain(t)||[t]; return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="event.stopPropagation();onTagClick('${escapeHtml(c).replace(/'/g,"\\'")}',event)">${escapeHtml(c)}</span>`).join('<span style="color:var(--border);margin:0 2px">›</span>'); }).join(' ');
-  const badges = (e) => [e.pos?`<span class="text-[9px] px-1 rounded bg-[#a855f7]/15 text-[#d8b4fe]">${escapeHtml(e.pos)}</span>`:'', (e.gender&&e.pos!=='verbo')?`<span class="text-[9px] px-1 rounded bg-[#f43f5e]/15 text-[#fda4af]">${escapeHtml(e.gender)}</span>`:''].filter(Boolean).join(' ');
+  const badges = (e) => [e.pos?`<span class="text-[9px] px-1 rounded ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:'', (e.gender&&e.pos!=='动词'&&e.pos!=='副词')?`<span class="text-[9px] px-1 rounded bg-[#f43f5e]/15 text-[#fda4af] border border-[#f43f5e]/30">${escapeHtml(e.gender)}</span>`:''].filter(Boolean).join(' ');
   const cardHtml = (e) => {
     const active = state.selectedEntryId === e.id ? 'active' : '';
+    const meta = [];
+    if (e.root && e.root !== e.word) meta.push(`<span class="text-[#f43f5e]">${escapeHtml(e.root)}</span>`);
+    if (e.latinOrigin) meta.push(`<span class="text-[#fbbf24] italic">${escapeHtml(e.latinOrigin)}</span>`);
+    if (e.englishCognate) meta.push(`<span class="text-[#7dd3fc]">${escapeHtml(e.englishCognate.split(/[\/,]/)[0].trim())}</span>`);
+    const tp = tagPills(e);
     return `<div class="word-item ${active} px-3 py-2 rounded-lg border border-white/5 fade-in" onclick="selectEntry('${e.id}')" ondblclick="dblClickEntry('${e.id}')">
       <div class="flex items-baseline justify-between mb-1 gap-2">
-        <div class="flex items-baseline gap-2 min-w-0">
+        <div class="flex items-baseline gap-2 min-w-0 flex-wrap">
           <span class="text-base font-bold text-white">${escapeHtml(e.word)}</span>
           ${badges(e)}
+          ${e.frequency?`<span class="text-[9px] text-slate-500">${{高频:'高频',中频:'中频',低频:'低频'}[e.frequency]||e.frequency}</span>`:''}
         </div>
         <button onclick="event.stopPropagation();speak('${escapeHtml(e.word)}')" class="text-[#6ee7b7] text-xs" title="朗读">▶</button>
       </div>
       <div class="text-[11px] text-slate-300">· ${escapeHtml((e.meaning||'').trim())}</div>
+      ${meta.length?`<div class="text-[9px] text-slate-500 mt-1 flex gap-2 flex-wrap">${meta.join(' · ')}</div>`:''}
+      ${tp?`<div class="mt-1">${tp}</div>`:''}
     </div>`;
   };
   if (state.filter.search.trim()) {
@@ -1077,7 +1101,9 @@ function renderWordsList() {
 // =========================================================================
 function renderDetail() {
   const panel = document.getElementById('detail-panel');
-  if (!state.selectedEntryId) { panel.innerHTML = emptyHint('← 选择一个词条','查看词根拆解、拉丁语源、词族与同源词'); return; }
+  // 未选词条但有高亮词根 → 显示「词根详情」（西语特色：词根本身是独立语言单位）
+  if (!state.selectedEntryId && state.highlightRoot) { renderRootDetail(panel, state.highlightRoot); return; }
+  if (!state.selectedEntryId) { panel.innerHTML = emptyHint('← 选择一个词条','查看词根拆解、拉丁语源、词族与同源词；或单击左侧词根看词族总览'); return; }
   const e = state.entries.find(x => x.id === state.selectedEntryId);
   if (!e) { panel.innerHTML = emptyHint('词条不存在',''); return; }
   const tagPills = (e.tags||[]).map(t => { const ch = getTagChain(t)||[t]; const tip = ch.join(' › '); return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="goToTag('${escapeHtml(c).replace(/'/g,"\\'")}',event)" title="${escapeHtml(tip)}">${escapeHtml(c)}</span>`).join('<span style="color:var(--border);margin:0 2px">›</span>'); }).join(' ');
@@ -1104,6 +1130,10 @@ function renderDetail() {
           ${e.rootMeaning?`<span>· ${escapeHtml(e.rootMeaning)}</span>`:''}
           ${e.latinOrigin?`<span>· 拉丁 <span class="text-[#fbbf24] italic">${escapeHtml(e.latinOrigin)}</span></span>`:''}
           ${e.etymologyTier?`<span class="px-1.5 py-0.5 rounded-full bg-[#38bdf8]/10 text-[#7dd3fc] border border-[#38bdf8]/20">${escapeHtml(e.etymologyTier)}</span>`:''}
+          ${e.verbClass?`<span class="px-1.5 py-0.5 rounded-full bg-[#fb7185]/15 text-[#fda4af] border border-[#fb7185]/30">${escapeHtml(e.verbClass)}</span>`:''}
+          ${e.regularity?`<span class="px-1.5 py-0.5 rounded-full bg-[#fbbf24]/15 text-[#fde68a] border border-[#fbbf24]/30">${escapeHtml(e.regularity)}</span>`:''}
+          ${e.register&&e.register!=='中性'?`<span class="px-1.5 py-0.5 rounded-full bg-[#22d3ee]/15 text-[#67e8f9] border border-[#22d3ee]/30">${escapeHtml(e.register)}</span>`:''}
+          ${e.region&&e.region!=='通用'?`<span class="px-1.5 py-0.5 rounded-full bg-[#8b5cf6]/15 text-[#c4b5fd] border border-[#8b5cf6]/30">${escapeHtml(e.region)}方言</span>`:''}
         </div>
       </div>
       <div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">释义 Significado</div><div class="text-[13px] text-[#fde68a] leading-relaxed">${escapeHtml((e.meaning||'').trim())||'<span class="text-slate-500 text-[12px] italic">（无）</span>'}</div></div>
@@ -1115,6 +1145,38 @@ function renderDetail() {
       ${(e.related||[]).length?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">🔗 同根词 Familia</div><div class="flex flex-wrap gap-1.5">${e.related.map(r=>`<span class="text-[11px] px-2 py-0.5 rounded bg-[#34d399]/10 text-[#6ee7b7] border border-[#34d399]/30">${escapeHtml(r)}</span>`).join('')}</div></div>`:''}
       ${tagPills?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">标签 Tags</div><div>${tagPills}</div></div>`:''}
       ${e.notes?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">📝 笔记</div><div class="text-[13px] text-slate-300 italic bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15">${escapeHtml(e.notes)}</div></div>`:''}
+    </div>`;
+}
+// 词根详情面板（西语特色：词根本身是独立语言单位，有释义/拉丁源/词族/cognate）
+function renderRootDetail(panel, root) {
+  const entries = state.entries.filter(e => getRootKey(e) === root);
+  if (!entries.length) { panel.innerHTML = emptyHint('该词根下暂无词条',''); return; }
+  const meta = getRootMeta(root);
+  // 聚合 cognates / 拉丁源 / 词源（取代表值）
+  const e0 = entries.find(e => e.etymology) || entries[0];
+  const cognates = (e0 && e0.cognates) || [];
+  const latinOrigin = meta.latinOrigin || (e0 && e0.latinOrigin) || '';
+  const englishCognate = (e0 && e0.englishCognate) || '';
+  // 收集该词根下所有词条的语义标签
+  const tagSet = new Set();
+  entries.forEach(e => (e.tags||[]).forEach(t => tagSet.add(t)));
+  const tagPills = [...tagSet].slice(0,8).map(t => { const ch = getTagChain(t)||[t]; return `<span class="tag-pill" onclick="onTagClick('${escapeHtml(t).replace(/'/g,"\\'")}',event)">${ch.map(escapeHtml).join(' › ')}</span>`; }).join(' ');
+  panel.innerHTML = `
+    <div class="fade-in">
+      <div class="mb-3">
+        <div class="flex items-baseline gap-2 flex-wrap">
+          <h2 class="text-[28px] font-bold text-white">${escapeHtml(root)}</h2>
+          <span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#38bdf8]/15 text-[#7dd3fc] border border-[#38bdf8]/30">词根 raíz</span>
+          <span class="text-xs text-slate-500">${entries.length} 个同根词</span>
+        </div>
+      </div>
+      ${meta.rootMeaning?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">词根释义 Significado de la raíz</div><div class="text-[13px] text-[#fde68a] leading-relaxed">${escapeHtml(meta.rootMeaning)}</div></div>`:''}
+      ${latinOrigin?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">拉丁语源 Origen latino</div><div class="text-[13px] text-[#fbbf24] italic">${escapeHtml(latinOrigin)}</div></div>`:''}
+      ${(e0&&e0.analysis)?`<div class="mb-4"><div class="text-[10px] text-[#d8b4fe] uppercase tracking-wider mb-1">🎯 词根语义分析</div><div class="text-[13px] text-slate-100 leading-relaxed bg-gradient-to-br from-[#a855f7]/10 to-[#ec4899]/5 px-3 py-2 rounded-lg border border-[#a855f7]/20">${escapeHtml(e0.analysis)}</div></div>`:''}
+      ${(e0&&e0.etymology)?`<div class="mb-4"><div class="text-[10px] text-[#fbbf24] uppercase tracking-wider mb-1">📜 词源追溯</div><div class="text-[13px] text-slate-200 leading-relaxed bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15 whitespace-pre-wrap">${escapeHtml(e0.etymology)}</div></div>`:''}
+      ${(englishCognate||cognates.length)?`<div class="mb-4"><div class="text-[10px] text-[#7dd3fc] uppercase tracking-wider mb-1">🌐 跨语言同源 Cognados</div><div class="flex flex-wrap gap-1.5 items-center">${englishCognate?`<span class="text-[11px] px-2 py-0.5 rounded bg-[#38bdf8]/10 border border-[#38bdf8]/30 text-[#7dd3fc]">英语: <span class="italic">${escapeHtml(englishCognate)}</span></span>`:''}${cognates.map(c=>`<span class="text-[11px] px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">${escapeHtml(c.lang)}: <span class="text-[#7dd3fc] italic">${escapeHtml(c.word)}</span></span>`).join('')}</div></div>`:''}
+      <div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">🌳 同根词族 Familia de palabras（双击词条看详情）</div><div class="space-y-1.5">${entries.map(e=>`<div class="cursor-pointer px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-[#34d399]/30" onclick="selectEntry('${e.id}')" ondblclick="dblClickEntry('${e.id}')"><div class="flex items-baseline gap-2"><span class="font-bold text-white text-[15px]">${escapeHtml(e.word)}</span>${e.pos?`<span class="text-[9px] px-1 rounded ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:''}${e.gender&&e.pos!=='动词'?`<span class="text-[9px] text-[#fda4af]">${escapeHtml(e.gender)}</span>`:''}</div><div class="text-[11px] text-slate-400 truncate">${escapeHtml((e.meaning||'').slice(0,40))}</div>${e.breakdown?`<div class="text-[10px] mt-1">${renderMorphology(e.breakdown)}</div>`:''}</div>`).join('')}</div></div>
+      ${tagPills?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">标签（词族语义聚合）</div><div>${tagPills}</div></div>`:''}
     </div>`;
 }
 function renderMorphology(breakdown) {
@@ -1179,8 +1241,9 @@ function selectLetter(L) {
 }
 function selectRoot(root) {
   state.highlightRoot = state.highlightRoot === root ? null : root;
+  state.selectedEntryId = null;  // 清空词条选中 → 详情面板切到「词根详情」
   if (state.filter.letter === null) { const e = state.entries.find(x => getRootKey(x)===root); if (e) state.filter.letter = getLetter(e.word); }
-  renderRootsList(); renderWordsList();
+  renderRootsList(); renderWordsList(); renderDetail();
 }
 function dblClickRoot(root) {
   state.highlightRoot = root;
@@ -1383,7 +1446,14 @@ const COMPLETION_FIELD_META = {
   tags:{ label:'标签', group:'内容', type:'array' },
   emoji:{ label:'💭 释义emoji', group:'内容', type:'emoji' },
   pos:{ label:'词性', group:'分类', type:'enum' },
+  gender:{ label:'阴阳性', group:'分类', type:'enum' },
   etymologyTier:{ label:'词源层次', group:'分类', type:'enum' },
+  // 语法特征（参考韩语 16 字段）
+  verbClass:{ label:'动词变位类', group:'词法', type:'enum' },
+  regularity:{ label:'规则性', group:'词法', type:'enum' },
+  register:{ label:'语域', group:'词法', type:'enum' },
+  region:{ label:'地区性', group:'词法', type:'enum' },
+  frequency:{ label:'词频', group:'词法', type:'enum' },
 };
 const COMPLETION_CONFIG_KEY = 'spanish_etymology_completion_v1';
 let completionConfig = { fields:['meaning','breakdown','analysis','etymology','englishCognate'], onlyIfEmpty:true };
@@ -1465,8 +1535,14 @@ function buildCompletionPrompt(batch) {
     examples:'例句数组，每条"西语 — 中文"',
     related:'同根词数组',
     tags:'语义标签数组，格式「一级大类 > 二级子类」。20 大类：'+Object.keys(_TAG_SUB_EXAMPLES).join(' / '),
-    pos:'词性',
+    pos:'词性（名词/动词/形容词/副词/代词/介词/连词/冠词/数词/感叹词/后缀/前缀/词根，用中文）',
+    gender:'阴阳性（m/f，名词/形容词填）',
     etymologyTier:'词源层次',
+    verbClass:'动词变位类（-ar/-er/-ir，仅动词）',
+    regularity:'规则性（规则/不规则/词干元音变化，仅动词）',
+    register:'语域（中性/口语/书面/正式）',
+    region:'地区性（通用/地区性）',
+    frequency:'词频（高频/中频/低频）',
   };
   const fieldList = fields.map(f=>`- ${f}: ${fieldDesc[f]||''}`).join('\n');
   const sampleObj = { word: batch[0]?.word||'' }; fields.forEach(f => { if (f==='examples'||f==='related'||f==='tags'||f==='cognates') sampleObj[f]=[]; else sampleObj[f]=''; });
@@ -1650,78 +1726,78 @@ function maybeSeedExample() {
   if (state.entries.length > 0) return;
   const now = Date.now();
   const seed = [
-    { word:'helado', pos:'sustantivo', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelatus',
+    { word:'helado', pos:'名词', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelatus',
       meaning:'🍦冰淇淋；冰冻的', breakdown:'hel-(寒冷词根) + -ado(过去分词后缀→形容词/名词)',
       analysis:'拉丁 gelatus「冻结的」经 g→h 音变进入西语为 hel-，核心语义「寒冷/凝固」。-ado 派生形容词「冰冻的」，名词化为「冰淇淋」。',
       etymology:'拉丁语 gelatus（冻结的，gelare「使结冰」的过去分词）→ 通俗拉丁语 *ghelatos → 古西班牙语 helado（g→h 音变：拉丁词首 g/e,i 前在西语变为 h，再脱落为哑音）。同源：意大利语 gelato、法语 gelé、英语 congeal/gelatin。',
-      englishCognate:'gelato / congeal / gelatin', cognates:[{lang:'意大利语',word:'gelato'},{lang:'法语',word:'gelé'},{lang:'英语',word:'gelatin'}],
-      etymologyTier:'通俗拉丁语继承词', examples:['Quiero un helado de chocolate. — 我要一个巧克力冰淇淋。','Está helado hoy. — 今天冷得冻人。'],
-      related:['helar','helada','hielo','heladero','gelatina'], tags:['饮食·食物·烹饪 > 甜品'], createdAt:now },
-    { word:'helar', pos:'verbo', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelare',
-      meaning:'❄️使结冰；冷冻；<口语>冻僵', breakdown:'hel-(寒冷) + -ar(动词后缀)',
+      englishCognate:'gelato / congeal / gelatin', cognates:[{lang:'意大利语',word:'gelato'},{lang:'法语',word:'gelé'}],
+      etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
+      examples:['Quiero un helado de chocolate. — 我要一个巧克力冰淇淋。','Está helado hoy. — 今天冷得冻人。'],
+      related:['helar','helada','hielo','heladero','gelatina'], tags:['饮食·食物·烹饪 > 甜品','状态·性质·变化 > 温度'], createdAt:now },
+    { word:'helar', pos:'动词', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelare', verbClass:'-ar', regularity:'规则',
+      meaning:'❄️使结冰；冷冻', breakdown:'hel-(寒冷) + -ar(动词后缀)',
       analysis:'gelare「使结冰」的直接继承，-ar 为第一变位动词词尾。核心义「使转化为冰」。',
       etymology:'拉丁 gelare（使结冰）→ 西语 helar（g→h）。同英语 congeal（con+gelare）。',
-      englishCognate:'congeal', etymologyTier:'通俗拉丁语继承词',
-      examples:['El agua se heló. — 水结冰了。'], related:['helado','helada','hielo'], tags:['状态·性质·变化 > 温度'], createdAt:now+1 },
-    { word:'helada', pos:'sustantivo', gender:'f', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelata',
+      englishCognate:'congeal', etymologyTier:'通俗拉丁语继承词', frequency:'中频', register:'中性',
+      examples:['El agua se heló. — 水结冰了。'], related:['helado','helada','hielo'], tags:['状态·性质·变化 > 温度','自然·天文·地理·生物 > 水'], createdAt:now+1 },
+    { word:'helada', pos:'名词', gender:'f', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelata',
       meaning:'🌫️霜冻；冰冻', breakdown:'hel-(寒冷) + -ada(动作/结果后缀)',
       analysis:'-ada 此处表「发生/结果」，即「结霜这一现象/其后果」。',
       etymology:'由 helar 加 -ada 构成。农业语境常用：una helada destrozó la cosecha。',
-      englishCognate:'', etymologyTier:'通俗拉丁语继承词',
-      examples:['Hubo una helada anoche. — 昨夜下了一场霜。'], related:['helado','helar','hielo'], tags:['自然·天文·地理·生物 > 气象'], createdAt:now+2 },
-    { word:'hielo', pos:'sustantivo', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelus',
+      englishCognate:'', etymologyTier:'通俗拉丁语继承词', frequency:'中频', register:'中性',
+      examples:['Hubo una helada anoche. — 昨夜下了一场霜。'], related:['helado','helar','hielo'], tags:['自然·天文·地理·生物 > 气象','农业'], createdAt:now+2 },
+    { word:'hielo', pos:'名词', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelus',
       meaning:'🧊冰；冷酷', breakdown:'hiel-(来自 gel-，元音裂化) + -o(名词词尾)',
       analysis:'拉丁 gelus「冰」（主格 gelu）→ 西语 hielo。注意 e→ie 裂元音变体，且 l 保留。',
       etymology:'拉丁 gelu/gelus（寒冷、冰）→ 古西语 hielo。词义由「冷」具象化为「冰」。',
-      englishCognate:'gel', etymologyTier:'通俗拉丁语继承词',
-      examples:['El hielo se derritió. — 冰融化了。'], related:['helado','helar','helada'], tags:['自然·天文·地理·生物 > 水'], createdAt:now+3 },
-    { word:'heladero', pos:'sustantivo', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'',
+      englishCognate:'gel', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
+      examples:['El hielo se derritió. — 冰融化了。'], related:['helado','helar','helada'], tags:['自然·天文·地理·生物 > 水','状态·性质·变化 > 温度'], createdAt:now+3 },
+    { word:'heladero', pos:'名词', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'',
       meaning:'🍧冰淇淋商；冷冻柜', breakdown:'hel-(寒冷) + -ero(职业/容器后缀)',
       analysis:'-ero 双义后缀：表人（卖冰淇淋者）与表物（存放冰淇淋的容器/冷柜）。',
-      etymology:'helado + -ero 派生。', englishCognate:'', etymologyTier:'内部新造词',
+      etymology:'helado + -ero 派生。', englishCognate:'', etymologyTier:'内部新造词', frequency:'低频', register:'口语',
       examples:['El heladero viene en verano. — 冰淇淋商夏天来。'], related:['helado','helar'], tags:['人物·人际·家庭 > 职业','饮食·食物·烹饪'], createdAt:now+4 },
-    { word:'gelatina', pos:'sustantivo', gender:'f', root:'gel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelatina',
+    { word:'gelatina', pos:'名词', gender:'f', root:'gel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelatina',
       meaning:'🍮明胶；果冻', breakdown:'gel-(凝固词根) + -atina(后缀)',
       analysis:'与 hel- 同源（拉丁 gelare），但 gel- 形式保留 g，多为文艺复兴后学术/书面借词，故显「科学/外来」色彩。',
       etymology:'意大利语/拉丁语 gelatina → 西语 gelatina（保留 g，为后期借词，未经历 g→h 音变）。英语 gelatin 同源。',
       englishCognate:'gelatin / jelly', cognates:[{lang:'意大利语',word:'gelatina'},{lang:'英语',word:'gelatin'}],
-      etymologyTier:'古典拉丁语借词', examples:['Me gusta la gelatina de fresa. — 我喜欢草莓果冻。'],
-      related:['helado','gel'], tags:['饮食·食物·烹饪'], createdAt:now+5 },
-    { word:'-ado', pos:'sufijo', root:'-ado', rootMeaning:'过去分词→形容词/名词', latinOrigin:'-atus',
+      etymologyTier:'古典拉丁语借词', frequency:'中频', register:'中性', examples:['Me gusta la gelatina de fresa. — 我喜欢草莓果冻。'],
+      related:['helado'], tags:['饮食·食物·烹饪 > 食材'], createdAt:now+5 },
+    { word:'-ado', pos:'后缀', root:'-ado', rootMeaning:'过去分词→形容词/名词', latinOrigin:'-atus',
       meaning:'📎过去分词后缀；表「…化的/有…的」', breakdown:'-ado(过去分词后缀)',
       analysis:'拉丁 -atus → 西语 -ado。接 -ar 动词词干，构成完成时/被动/形容词。是西语最高频后缀之一。',
       etymology:'拉丁过去分词后缀 -atus（如 laudatus）→ 西语 -ado。',
-      englishCognate:'-ade / -ate', etymologyTier:'通俗拉丁语继承词',
-      examples:['helado（冰冻的）、cansado（累的）、sentado（坐着的）'], related:['helado','cansado','sentado'], tags:[], createdAt:now+6 },
-    // 补充几个其他字母的常见词族
-    { word:'amar', pos:'verbo', root:'am-', rootMeaning:'爱', latinOrigin:'amare',
+      englishCognate:'-ade / -ate', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
+      examples:['helado（冰冻的）、cansado（累的）、sentado（坐着的）'], related:['helado'], tags:['语言·文字·思维 > 构词法'], createdAt:now+6 },
+    { word:'amar', pos:'动词', root:'am-', rootMeaning:'爱', latinOrigin:'amare', verbClass:'-ar', regularity:'规则',
       meaning:'❤️爱', breakdown:'am-(爱词根) + -ar(动词后缀)',
       analysis:'拉丁 amare「爱」，印欧词根 *am-「爱/亲和」。西语第一变位动词，规则变化。',
       etymology:'拉丁 amare → 西语 amar。同根：amor, amable, amante, amistad。英语 amiable/amateur 同源。',
-      englishCognate:'amiable / amateur', etymologyTier:'通俗拉丁语继承词',
+      englishCognate:'amiable / amateur', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['Te amo. — 我爱你。'], related:['amor','amable','amante','amistad'], tags:['情感·心理·性格 > 爱'], createdAt:now+7 },
-    { word:'amor', pos:'sustantivo', gender:'m', root:'am-', rootMeaning:'爱', latinOrigin:'amor',
+    { word:'amor', pos:'名词', gender:'m', root:'am-', rootMeaning:'爱', latinOrigin:'amor',
       meaning:'❤️爱；爱情；爱人', breakdown:'am-(爱) + -or(抽象名词后缀)',
       analysis:'-or 表抽象状态，amor 即「爱的状态/情感」。',
-      etymology:'拉丁 amor, -ōris → 西语 amor。', englishCognate:'amour / amorous', etymologyTier:'通俗拉丁语继承词',
+      etymology:'拉丁 amor, -ōris → 西语 amor。', englishCognate:'amour / amorous', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['El amor es ciego. — 爱情是盲目的。'], related:['amar','amable','amante'], tags:['情感·心理·性格 > 爱'], createdAt:now+8 },
-    { word:'luz', pos:'sustantivo', gender:'f', root:'luc-/luz', rootMeaning:'光', latinOrigin:'lux, lucis',
+    { word:'luz', pos:'名词', gender:'f', root:'luc-/luz', rootMeaning:'光', latinOrigin:'lux, lucis',
       meaning:'💡光；光明', breakdown:'luz(光，来自 luc-)',
       analysis:'拉丁 lux（主格）/ lucis（属格）→ 西语 luz。词根 lumin-/luc- 表「光」。',
       etymology:'拉丁 lux, lucis → 西语 luz（c→z 音变）。同根：lunar, iluminar, lumbrera。',
-      englishCognate:'light / lucid / luminous', etymologyTier:'通俗拉丁语继承词',
+      englishCognate:'light / lucid / luminous', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['La luz del sol. — 太阳的光。'], related:['iluminar','lunar','lumbrera'], tags:['自然·天文·地理·生物 > 光'], createdAt:now+9 },
-    { word:'decir', pos:'verbo', root:'dic-/dec-', rootMeaning:'说', latinOrigin:'dicere',
+    { word:'decir', pos:'动词', root:'dic-/dec-', rootMeaning:'说', latinOrigin:'dicere', verbClass:'-ir', regularity:'不规则（e→i 词干变化）',
       meaning:'🗣️说；告诉', breakdown:'dec-(说词根，来自 dic-) + -ir(动词后缀)',
       analysis:'拉丁 dicere「说」，印欧词根 *deik-「指出/说」。西语为不规则动词（e→i 词干变化）。',
       etymology:'拉丁 dicere → 西语 decir。同根：dictar, dictado, dictamen, edición, predicar。',
-      englishCognate:'diction / dictate / dictionary', etymologyTier:'通俗拉丁语继承词',
-      examples:['¿Qué dices? — 你说什么？'], related:['dictar','dictado','edición','predicar'], tags:['语言·文字·思维 > 词汇'], createdAt:now+10 },
-    { word:'reconstrucción', pos:'sustantivo', gender:'f', root:'struct-', rootMeaning:'建造', latinOrigin:'struct-',
+      englishCognate:'diction / dictate / dictionary', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
+      examples:['¿Qué dices? — 你说什么？'], related:['dictar','dictado','edición','predicar'], tags:['语言·文字·思维 > 词汇','动作·行为·过程 > 说'], createdAt:now+10 },
+    { word:'reconstrucción', pos:'名词', gender:'f', root:'struct-', rootMeaning:'建造', latinOrigin:'struct-',
       meaning:'🏗️重建；重构', breakdown:'re-(再) + con-(共同) + struct-(建造) + -ción(动作名词后缀)',
       analysis:'完美展示西语三段拆解：re（再/回）+ con（共同/加强）+ struct（建造词根）+ -ción（动作结果名词化）。字面「再次共同建造」→「重建」。',
       etymology:'拉丁 restructuring 的后裔；struct- 来自 struere「堆叠/建造」的过去分词。-cción 来自拉丁 -ctionem。-ct- → -cc- 保留（书面色彩）。',
-      englishCognate:'reconstruction', etymologyTier:'古典拉丁语借词',
+      englishCognate:'reconstruction', etymologyTier:'古典拉丁语借词', frequency:'低频', register:'书面',
       examples:['La reconstrucción del puente. — 桥梁的重建。'], related:['construir','estructura','destruir'], tags:['动作·行为·过程 > 建造'], createdAt:now+11 },
   ];
   seed.forEach(e => { e.id = uid(); e.updatedAt = e.createdAt; });
