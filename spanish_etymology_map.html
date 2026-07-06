@@ -296,6 +296,7 @@
       <div class="flex items-center gap-2">
         <input id="tag-browser-search" type="text" placeholder="过滤标签..." oninput="onTagBrowserSearch(this.value)" class="rounded-lg px-3 py-1.5 text-xs">
         <button onclick="restructureTagsWithAI()" class="px-2.5 py-1.5 text-xs rounded-lg bg-gradient-to-r from-[#a855f7]/25 to-[#ec4899]/25 border border-[#a855f7]/40 text-[#d8b4fe]">✨ AI 重组</button>
+        <button onclick="collapseAllTagTree()" class="px-2 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-300" title="全收缩">▿ 全收缩</button>
         <button onclick="closeTagBrowser()" class="text-slate-400 hover:text-white">✕</button>
       </div>
     </div>
@@ -1420,6 +1421,7 @@ function renderTagTree() {
   c.innerHTML = html;
 }
 function toggleTagExpand(tag) { if (tagBrowserState.expanded.has(tag)) tagBrowserState.expanded.delete(tag); else tagBrowserState.expanded.add(tag); renderTagTree(); }
+function collapseAllTagTree() { tagBrowserState.expanded.clear(); renderTagTree(); }
 function selectTagInBrowser(tag) { if (tagBrowserState.selectedTag===tag) tagBrowserState.expanded.delete(tag); else { tagBrowserState.selectedTag=tag; getTagChain(tag).forEach(t=>tagBrowserState.expanded.add(t)); } renderTagBrowser(); }
 function renderTagDetail() {
   const p = document.getElementById('tag-detail'); const tag = tagBrowserState.selectedTag;
@@ -1467,14 +1469,28 @@ function findIncompleteEntries() {
 }
 function renderCompletionFieldPicker() {
   const grid=document.getElementById('comp-field-grid'); if(!grid)return;
-  const groups=['内容','分类']; let html='';
+  const groups=['内容','分类','词法']; let html='';
   for (const g of groups) {
     const fieldsInGroup = Object.entries(COMPLETION_FIELD_META).filter(([_,m])=>m.group===g);
-    html += `<div class="col-span-full text-[10px] text-slate-500 uppercase tracking-wider mt-1">${g}</div>`;
+    const groupKeys = fieldsInGroup.map(([k])=>k);
+    const allChecked = groupKeys.every(k => completionConfig.fields.includes(k));
+    html += `<div class="col-span-full flex items-center justify-between mt-1">
+      <span class="text-[10px] text-slate-500 uppercase tracking-wider">${g}</span>
+      <div class="flex gap-2 text-[10px]">
+        <button onclick="setGroupFields('${g}',true)" class="${allChecked?'text-[#7dd3fc]':'text-slate-500'} hover:underline">全选</button>
+        <button onclick="setGroupFields('${g}',false)" class="${!allChecked&&groupKeys.some(k=>completionConfig.fields.includes(k))?'text-[#fda4af]':'text-slate-500'} hover:underline">全不选</button>
+      </div>
+    </div>`;
     for (const [k,m] of fieldsInGroup) { const checked=completionConfig.fields.includes(k)?'checked':''; html += `<label class="flex items-center gap-1 cursor-pointer px-1.5 py-1 rounded border border-white/5 hover:border-[#a855f7]/30 ${checked?'bg-[#a855f7]/5':''}"><input type="checkbox" class="w-3 h-3 accent-[#a855f7]" ${checked} onchange="toggleCompletionField('${k}',this.checked)"><span class="text-slate-300">${m.label}</span></label>`; }
   }
   grid.innerHTML = html;
   document.getElementById('comp-only-empty').checked = completionConfig.onlyIfEmpty;
+}
+function setGroupFields(group, on) {
+  const groupKeys = Object.entries(COMPLETION_FIELD_META).filter(([_,m])=>m.group===group).map(([k])=>k);
+  if (on) groupKeys.forEach(k => { if (!completionConfig.fields.includes(k)) completionConfig.fields.push(k); });
+  else completionConfig.fields = completionConfig.fields.filter(f => !groupKeys.includes(f));
+  saveCompletionConfig(); renderCompletionFieldPicker(); refreshAIScanResult();
 }
 function toggleCompletionField(f, on) { if(on&&!completionConfig.fields.includes(f)) completionConfig.fields.push(f); if(!on) completionConfig.fields=completionConfig.fields.filter(x=>x!==f); saveCompletionConfig(); refreshAIScanResult(); }
 function toggleCompletionOnlyIfEmpty(on) { completionConfig.onlyIfEmpty=on; saveCompletionConfig(); }
@@ -1503,7 +1519,7 @@ function buildAIEntryPrompt(input, existingTags) {
 - pos: 词性（sustantivo/verbo/adjetivo/adverbio/pronombre/preposición/conjunción/artículo/sufijo/prefijo/raíz）
 - gender: 阴阳性（m/f，名词/形容词填）
 - root: 核心词根（如 hel-）；sufijo/prefijo 类填自身（如 -ado）
-- rootMeaning: 词根核心含义（如 寒冷、凝固）
+- rootMeaning: 词根核心含义，开头带 1-2 个 emoji 呼应词根义（如 ❄️寒冷、凝固 / ❤️爱 / 💡光）
 - latinOrigin: 拉丁语源形式（如 gelatus）
 - meaning: 中文释义。**开头放 1-3 个 emoji**（呼应词根义），如 💧水 / 🍦冰淇淋 / 👄🌶️🪡辣。多义项用；分隔
 - breakdown: 形态拆解，格式「词根(义) + 后缀(义)」，如 hel-(寒冷词根) + -ado(过去分词后缀)
@@ -1690,6 +1706,19 @@ async function runAICompletion() {
   if (_singleEntryId) { renderDetail(); renderWordsList(); }
   _aiBackgroundRunning=false; _singleEntryId=null;
 }
+// 字段适用性：哪些 POS 才能填某字段（参考韩语 FIELD_APPLICABILITY）
+// value: POS 集合；空数组=全适用
+const FIELD_APPLICABILITY = {
+  gender: ['名词','代词','数词','形容词'],          // 阴阳性仅名/代/数/形
+  verbClass: ['动词'],                              // 动词变位类仅动词
+  regularity: ['动词'],                             // 规则性仅动词
+};
+function _isFieldApplicable(field, entry) {
+  const allowed = FIELD_APPLICABILITY[field];
+  if (!allowed) return true;       // 不在表里 = 全适用
+  if (entry.pos == null || entry.pos === '') return true;  // 词性未知 = 不阻挡
+  return allowed.includes(entry.pos);
+}
 function applyCompletions(batch, results) {
   let updated=0;
   for (const r of (results.results||[])) {
@@ -1702,6 +1731,8 @@ function applyCompletions(batch, results) {
       if (Array.isArray(newVal)&&newVal.length===0) continue;
       if (typeof newVal==='string'&&newVal.trim()==='') continue;
       if (completionConfig.onlyIfEmpty && !isFieldEmpty(target, field)) continue;
+      // ★ POS 适用性硬过滤：动词不会有 gender 的动词形、名词不会有 verbClass
+      if (!_isFieldApplicable(field, target)) { console.log(`[Completion] 跳过 ${target.word} 的 ${field}（不适用词性 ${target.pos||'未知'}）`); continue; }
       const fv = (field==='tags') ? (Array.isArray(newVal)?newVal.map(_ingestTag):[]).filter(Boolean) : newVal;
       if (Array.isArray(fv)) target[field] = fv.slice(0,12);
       else target[field] = String(fv).trim();
@@ -1717,7 +1748,165 @@ function updateAIProgress(done, total, label) { const pct = total?Math.round(don
 // =========================================================================
 // AI 标签重组（简化版）
 // =========================================================================
-function restructureTagsWithAI() { toast('标签重组需配置 AI，请先用「AI 补全」给词条加 tags 后再使用','info'); }
+// =========================================================================
+// AI 标签重组（参考韩语，适配西语 20 大类）
+// =========================================================================
+function collectTagsForAI() {
+  const tagsWithSamples = {};
+  state.entries.forEach(e => {
+    (e.tags || []).forEach(t => {
+      if (!tagsWithSamples[t]) tagsWithSamples[t] = [];
+      const senses = (e.meaning || '').replace(/^[\s·]*()/,'').split(/[;；]/).map(s=>s.trim()).filter(Boolean).join('/');
+      if (senses) tagsWithSamples[t].push(`${e.word}(${senses})`);
+    });
+  });
+  return Object.entries(tagsWithSamples).map(([tag, samples]) => ({ tag, count: samples.length, samples: samples.slice(0, 3) }));
+}
+function buildTagRestructurePrompt(tagData) {
+  const tagList = tagData.map((t,i) => `${i+1}. ${t.tag} (${t.count}词条) — 例: ${t.samples.join(' | ')}`).join('\n');
+  const currentGraph = Object.keys(state.tagGraph||{}).length > 0 ? `\n【当前已有标签图（在此基础上优化）】\n${JSON.stringify(state.tagGraph,null,2)}\n` : '';
+  const rootsList = TAG_TAXONOMY_ROOTS.map((r,i)=>`   ${i+1}. ${r}`).join('\n');
+  return `你是西班牙语词汇语义分类专家，为西语学习者重组标签体系。
+
+【当前所有标签（带样例）】共 ${tagData.length} 个，**输出必须逐条覆盖，不能漏**。
+${tagList}
+${currentGraph}
+【参考顶级分类（共 ${TAG_TAXONOMY_ROOTS.length} 个，强制使用此 20 个为根）】
+${rootsList}
+
+规则：所有 parent 链最终收敛到上面 20 根之一；禁止造新顶级；看不准按最主要语义归类。
+
+【任务】构建「一级大类(20根) → 二级子类 → 叶子」层级树：
+- parent: 父标签（20 根之一或已存在标签）
+- aliases: 同义/近义标签
+- related: 横向相关
+- 优先建二级子类（如「饮食·食物·烹饪 > 甜品」「动作·行为·过程 > 移动」）
+
+【硬性约束】
+1. 最大深度 2 层（根→子类→叶子），叶子到根 ≤ 2 跳
+2. 必须覆盖全部 ${tagData.length} 个标签
+3. 禁止「其他/杂项/未分类/TODO」万能桶作 parent
+4. 一个标签一个 parent，不循环
+5. 同义词挑一个 canonical，其余 aliases
+6. 随手标签（TODO/重要）挂「教育·学习·知识」
+7. **禁止语法类标签**：词性（名词/动词/形容词/sustantivo/verbo/noun/verb）、语种、性数等不是语义标签，从输入过滤掉
+8. **禁止重复子标签**：同一 parent 下 children 互异
+
+【输出必须含 processedTags 数组】逐字列出已处理的输入标签名。
+
+【自检】叶子到根≤2跳？根都在 20 个中？processedTags 长度=${tagData.length}？parent 引用都存在？
+
+【输出】仅严格 JSON：
+{"processedTags":["标签1",...],"tagGraph":{"<标签>":{"parent":"<父或null>","aliases":[],"related":[]}}}`;
+}
+async function restructureTagsWithAI() {
+  const tagData = collectTagsForAI();
+  if (tagData.length === 0) { toast('还没有任何标签，先给词条加标签','error'); return; }
+  const completionLLM = getLLMSlot('completion');
+  if (!completionLLM.apiKey) { toast('请先在 ⚙ 设置里填写补全 LLM 的 API Key','error'); activeLLMTab='completion'; openSettingsModal(); return; }
+  if (!confirm(`让 AI 重组 ${tagData.length} 个标签的结构？\n现有标签图会被覆盖，词条上的标签字符串不动。`)) return;
+  const btn = event?.target; if (btn) { btn.disabled = true; btn.textContent = '⏳ AI 思考中...'; }
+  try {
+    const prompt = buildTagRestructurePrompt(tagData);
+    const resp = await callLLM(completionLLM, prompt, 8192);
+    const parsed = extractJSON(resp);
+    if (!parsed.tagGraph || typeof parsed.tagGraph !== 'object') throw new Error('响应缺少 tagGraph 字段');
+    showTagRestructurePreview(parsed.tagGraph);
+  } catch(e) { toast('AI 重组失败：'+e.message,'error'); console.error(e); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '✨ AI 重组'; } }
+}
+function showTagRestructurePreview(rawGraph) {
+  const newGraph = JSON.parse(JSON.stringify(rawGraph));
+  const inputTags = collectTagsForAI().map(t => t.tag);
+  // 1) 修复悬空 parent
+  const refs = new Set(); Object.values(newGraph).forEach(n => { if (n&&n.parent) refs.add(n.parent); });
+  refs.forEach(p => { if (!newGraph[p]) newGraph[p] = { parent:null, aliases:[], related:[] }; });
+  // 2) 修复循环
+  Object.entries(newGraph).forEach(([tag,node]) => {
+    const guard = new Set([tag]); let cur = node&&node.parent;
+    while (cur && !guard.has(cur)) { guard.add(cur); cur = newGraph[cur]&&newGraph[cur].parent; }
+    if (cur === tag) newGraph[tag].parent = null;
+  });
+  // 3) 深度限制 ≤ 2
+  let changed = true;
+  while (changed) {
+    changed = false;
+    Object.entries(newGraph).forEach(([tag,node]) => {
+      if (!node||!node.parent) return;
+      const path = []; let cur = tag; const guard = new Set();
+      while (cur && newGraph[cur] && newGraph[cur].parent && !guard.has(cur)) { guard.add(cur); path.push(newGraph[cur].parent); cur = newGraph[cur].parent; }
+      if (path.length > 2) { newGraph[tag].parent = path[1] || null; changed = true; }
+    });
+  }
+  // 4) 根不在 20 标准根中 → 用 _routeTagToRoot 兜底
+  const rootSet = new Set(TAG_TAXONOMY_ROOTS);
+  Object.entries(newGraph).forEach(([tag,node]) => {
+    if (node && !node.parent && !rootSet.has(tag)) { const r = _routeTagToRoot(tag); if (r) newGraph[tag].parent = r; }
+  });
+  TAG_TAXONOMY_ROOTS.forEach(r => { if (!newGraph[r]) newGraph[r] = { parent:null, aliases:[], related:[] }; });
+  // 5) 过滤语法污染标签 + 漏标签兜底
+  const GRAMMAR = ['名词','动词','形容词','副词','代词','介词','连词','冠词','数词','感叹词','后缀','前缀','词根','sustantivo','verbo','adjetivo','noun','verb','m','f'];
+  Object.keys(newGraph).forEach(t => { if (GRAMMAR.includes(t)) delete newGraph[t]; });
+  const missing = inputTags.filter(t => !newGraph[t] && !GRAMMAR.includes(t));
+  missing.forEach(t => { const r = _routeTagToRoot(t); newGraph[t] = { parent: r || '抽象概念·数量·关系', aliases:[], related:[] }; });
+  // 6) aliases 补条目
+  Object.entries(newGraph).forEach(([canon,node]) => { (node.aliases||[]).forEach(a => { if (!newGraph[a]) newGraph[a] = { parent: canon, aliases:[], related:[] }; }); });
+
+  window._lastMissingTags = missing.slice();
+  window._lastNewGraph = newGraph;
+  const roots = Object.entries(newGraph).filter(([_,n]) => !n.parent).map(([t]) => t);
+  const newKeys = Object.keys(newGraph).filter(k => !Object.keys(state.tagGraph||{}).includes(k));
+
+  const html = `<div class="bg-white/[0.03] border border-white/10 rounded-lg p-4 mb-3">
+    <div class="text-[#6ee7b7] font-semibold mb-1">AI 重组结果（已自动清洗）</div>
+    <div>共 ${Object.keys(newGraph).length} 个标签 · ${roots.length} 个顶级</div>
+    <div class="mt-1 flex gap-2 flex-wrap text-[10px]">
+      ${newKeys.length?`<span class="text-[#34d399]">新增 ${newKeys.length}</span>`:''}
+      ${missing.length?`<span class="text-[#fbbf24]">AI 漏 ${missing.length} 个（已按关键词兜底）</span>`:'<span class="text-[#34d399]">✓ 全覆盖</span>'}
+    </div>
+    ${missing.length?`<div class="mt-2 text-[10px] text-slate-400">建议点 [↻ 仅补漏 ${missing.length} 个] 让 AI 专门重分类：<br>${missing.slice(0,20).map(t=>`<span class="inline-block px-1.5 py-0.5 m-0.5 rounded bg-[#fbbf24]/10 border border-[#fbbf24]/30 text-[#fde68a]">${escapeHtml(t)}</span>`).join('')}</div>`:''}
+  </div>`;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-backdrop';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);';
+  overlay.innerHTML = `<div class="glass rounded-2xl p-6" style="max-width:680px;width:100%;"><div class="flex justify-between items-center mb-3"><h3 class="text-lg font-bold text-white">✨ AI 标签重组预览</h3><button onclick="this.closest('.modal-backdrop').remove()" class="text-slate-400 hover:text-white">✕</button></div><div style="max-height:55vh;overflow-y:auto">${html}</div><div class="flex gap-2 mt-3 flex-wrap justify-end"><button onclick="this.closest('.modal-backdrop').remove()" class="px-4 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-slate-300">取消</button><button onclick="rerunRestructure()" class="px-4 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-slate-300">↻ 全部重跑</button>${missing.length?`<button onclick="retryMissingTagsAI()" class="px-4 py-2 text-sm rounded-lg bg-[#fbbf24]/15 border border-[#fbbf24]/40 text-[#fcd34d]">↻ 仅补漏 ${missing.length}</button>`:''}<button onclick="applyRestructure()" class="px-4 py-2 text-sm rounded-lg bg-[#38bdf8] text-slate-900 font-semibold">应用</button></div></div>`;
+  document.body.appendChild(overlay);
+}
+function applyRestructure() {
+  document.querySelectorAll('.modal-backdrop').forEach(el => { if (el.style.zIndex === '110') el.remove(); });
+  if (!window._lastNewGraph) return;
+  state.tagGraph = window._lastNewGraph;
+  state.tagGraphUpdatedAt = Date.now();
+  save(); renderTagCloud();
+  if (document.getElementById('tag-browser-modal') && !document.getElementById('tag-browser-modal').classList.contains('hidden')) renderTagBrowser();
+  toast(`✓ 已应用 AI 重组（${Object.keys(state.tagGraph).length} 标签）`,'success');
+}
+function rerunRestructure() {
+  document.querySelectorAll('.modal-backdrop').forEach(el => { if (el.style.zIndex === '110') el.remove(); });
+  setTimeout(() => restructureTagsWithAI(), 50);
+}
+async function retryMissingTagsAI() {
+  const missing = window._lastMissingTags || [];
+  if (!missing.length) { toast('没有遗漏标签','info'); return; }
+  const completionLLM = getLLMSlot('completion');
+  if (!completionLLM.apiKey) { toast('请先配置补全 LLM','error'); return; }
+  document.querySelectorAll('.modal-backdrop').forEach(el => { if (el.style.zIndex === '110') el.remove(); });
+  const btn = event?.target; if (btn) { btn.disabled = true; btn.textContent = '⏳ 补漏中...'; }
+  try {
+    const tagData = missing.map(t => {
+      const words = getTagWords(t);
+      const samples = words.slice(0,3).map(w => `${w.word}(${(w.meaning||'').split(/[;；]/)[0]})`);
+      return { tag: t, count: words.length, samples };
+    });
+    const prompt = buildTagRestructurePrompt(tagData);
+    const resp = await callLLM(completionLLM, prompt, 4096);
+    const parsed = extractJSON(resp);
+    if (!parsed.tagGraph) throw new Error('响应缺少 tagGraph');
+    const merged = { ...(window._lastNewGraph||{}), ...parsed.tagGraph };
+    showTagRestructurePreview(merged);
+  } catch(e) { toast('补漏失败：'+e.message,'error'); console.error(e); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = `↻ 仅补漏 ${missing.length}`; } }
+}
 
 // =========================================================================
 // 种子数据 — hel-/gel- 词族（拉丁 gelatus：寒冷、凝固）
@@ -1726,7 +1915,7 @@ function maybeSeedExample() {
   if (state.entries.length > 0) return;
   const now = Date.now();
   const seed = [
-    { word:'helado', pos:'名词', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelatus',
+    { word:'helado', pos:'名词', gender:'m', root:'hel-', rootMeaning:'❄️寒冷、凝固', latinOrigin:'gelatus',
       meaning:'🍦冰淇淋；冰冻的', breakdown:'hel-(寒冷词根) + -ado(过去分词后缀→形容词/名词)',
       analysis:'拉丁 gelatus「冻结的」经 g→h 音变进入西语为 hel-，核心语义「寒冷/凝固」。-ado 派生形容词「冰冻的」，名词化为「冰淇淋」。',
       etymology:'拉丁语 gelatus（冻结的，gelare「使结冰」的过去分词）→ 通俗拉丁语 *ghelatos → 古西班牙语 helado（g→h 音变：拉丁词首 g/e,i 前在西语变为 h，再脱落为哑音）。同源：意大利语 gelato、法语 gelé、英语 congeal/gelatin。',
@@ -1734,66 +1923,66 @@ function maybeSeedExample() {
       etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['Quiero un helado de chocolate. — 我要一个巧克力冰淇淋。','Está helado hoy. — 今天冷得冻人。'],
       related:['helar','helada','hielo','heladero','gelatina'], tags:['饮食·食物·烹饪 > 甜品','状态·性质·变化 > 温度'], createdAt:now },
-    { word:'helar', pos:'动词', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelare', verbClass:'-ar', regularity:'规则',
+    { word:'helar', pos:'动词', root:'hel-', rootMeaning:'❄️寒冷、凝固', latinOrigin:'gelare', verbClass:'-ar', regularity:'规则',
       meaning:'❄️使结冰；冷冻', breakdown:'hel-(寒冷) + -ar(动词后缀)',
       analysis:'gelare「使结冰」的直接继承，-ar 为第一变位动词词尾。核心义「使转化为冰」。',
       etymology:'拉丁 gelare（使结冰）→ 西语 helar（g→h）。同英语 congeal（con+gelare）。',
       englishCognate:'congeal', etymologyTier:'通俗拉丁语继承词', frequency:'中频', register:'中性',
       examples:['El agua se heló. — 水结冰了。'], related:['helado','helada','hielo'], tags:['状态·性质·变化 > 温度','自然·天文·地理·生物 > 水'], createdAt:now+1 },
-    { word:'helada', pos:'名词', gender:'f', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelata',
+    { word:'helada', pos:'名词', gender:'f', root:'hel-', rootMeaning:'❄️寒冷、凝固', latinOrigin:'gelata',
       meaning:'🌫️霜冻；冰冻', breakdown:'hel-(寒冷) + -ada(动作/结果后缀)',
       analysis:'-ada 此处表「发生/结果」，即「结霜这一现象/其后果」。',
       etymology:'由 helar 加 -ada 构成。农业语境常用：una helada destrozó la cosecha。',
       englishCognate:'', etymologyTier:'通俗拉丁语继承词', frequency:'中频', register:'中性',
       examples:['Hubo una helada anoche. — 昨夜下了一场霜。'], related:['helado','helar','hielo'], tags:['自然·天文·地理·生物 > 气象','农业'], createdAt:now+2 },
-    { word:'hielo', pos:'名词', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelus',
+    { word:'hielo', pos:'名词', gender:'m', root:'hel-', rootMeaning:'❄️寒冷、凝固', latinOrigin:'gelus',
       meaning:'🧊冰；冷酷', breakdown:'hiel-(来自 gel-，元音裂化) + -o(名词词尾)',
       analysis:'拉丁 gelus「冰」（主格 gelu）→ 西语 hielo。注意 e→ie 裂元音变体，且 l 保留。',
       etymology:'拉丁 gelu/gelus（寒冷、冰）→ 古西语 hielo。词义由「冷」具象化为「冰」。',
       englishCognate:'gel', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['El hielo se derritió. — 冰融化了。'], related:['helado','helar','helada'], tags:['自然·天文·地理·生物 > 水','状态·性质·变化 > 温度'], createdAt:now+3 },
-    { word:'heladero', pos:'名词', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'',
+    { word:'heladero', pos:'名词', gender:'m', root:'hel-', rootMeaning:'❄️寒冷、凝固', latinOrigin:'',
       meaning:'🍧冰淇淋商；冷冻柜', breakdown:'hel-(寒冷) + -ero(职业/容器后缀)',
       analysis:'-ero 双义后缀：表人（卖冰淇淋者）与表物（存放冰淇淋的容器/冷柜）。',
       etymology:'helado + -ero 派生。', englishCognate:'', etymologyTier:'内部新造词', frequency:'低频', register:'口语',
       examples:['El heladero viene en verano. — 冰淇淋商夏天来。'], related:['helado','helar'], tags:['人物·人际·家庭 > 职业','饮食·食物·烹饪'], createdAt:now+4 },
-    { word:'gelatina', pos:'名词', gender:'f', root:'gel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelatina',
+    { word:'gelatina', pos:'名词', gender:'f', root:'gel-', rootMeaning:'❄️寒冷、凝固', latinOrigin:'gelatina',
       meaning:'🍮明胶；果冻', breakdown:'gel-(凝固词根) + -atina(后缀)',
       analysis:'与 hel- 同源（拉丁 gelare），但 gel- 形式保留 g，多为文艺复兴后学术/书面借词，故显「科学/外来」色彩。',
       etymology:'意大利语/拉丁语 gelatina → 西语 gelatina（保留 g，为后期借词，未经历 g→h 音变）。英语 gelatin 同源。',
       englishCognate:'gelatin / jelly', cognates:[{lang:'意大利语',word:'gelatina'},{lang:'英语',word:'gelatin'}],
       etymologyTier:'古典拉丁语借词', frequency:'中频', register:'中性', examples:['Me gusta la gelatina de fresa. — 我喜欢草莓果冻。'],
       related:['helado'], tags:['饮食·食物·烹饪 > 食材'], createdAt:now+5 },
-    { word:'-ado', pos:'后缀', root:'-ado', rootMeaning:'过去分词→形容词/名词', latinOrigin:'-atus',
+    { word:'-ado', pos:'后缀', root:'-ado', rootMeaning:'📎过去分词→形容词/名词', latinOrigin:'-atus',
       meaning:'📎过去分词后缀；表「…化的/有…的」', breakdown:'-ado(过去分词后缀)',
       analysis:'拉丁 -atus → 西语 -ado。接 -ar 动词词干，构成完成时/被动/形容词。是西语最高频后缀之一。',
       etymology:'拉丁过去分词后缀 -atus（如 laudatus）→ 西语 -ado。',
       englishCognate:'-ade / -ate', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['helado（冰冻的）、cansado（累的）、sentado（坐着的）'], related:['helado'], tags:['语言·文字·思维 > 构词法'], createdAt:now+6 },
-    { word:'amar', pos:'动词', root:'am-', rootMeaning:'爱', latinOrigin:'amare', verbClass:'-ar', regularity:'规则',
+    { word:'amar', pos:'动词', root:'am-', rootMeaning:'❤️爱', latinOrigin:'amare', verbClass:'-ar', regularity:'规则',
       meaning:'❤️爱', breakdown:'am-(爱词根) + -ar(动词后缀)',
       analysis:'拉丁 amare「爱」，印欧词根 *am-「爱/亲和」。西语第一变位动词，规则变化。',
       etymology:'拉丁 amare → 西语 amar。同根：amor, amable, amante, amistad。英语 amiable/amateur 同源。',
       englishCognate:'amiable / amateur', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['Te amo. — 我爱你。'], related:['amor','amable','amante','amistad'], tags:['情感·心理·性格 > 爱'], createdAt:now+7 },
-    { word:'amor', pos:'名词', gender:'m', root:'am-', rootMeaning:'爱', latinOrigin:'amor',
+    { word:'amor', pos:'名词', gender:'m', root:'am-', rootMeaning:'❤️爱', latinOrigin:'amor',
       meaning:'❤️爱；爱情；爱人', breakdown:'am-(爱) + -or(抽象名词后缀)',
       analysis:'-or 表抽象状态，amor 即「爱的状态/情感」。',
       etymology:'拉丁 amor, -ōris → 西语 amor。', englishCognate:'amour / amorous', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['El amor es ciego. — 爱情是盲目的。'], related:['amar','amable','amante'], tags:['情感·心理·性格 > 爱'], createdAt:now+8 },
-    { word:'luz', pos:'名词', gender:'f', root:'luc-/luz', rootMeaning:'光', latinOrigin:'lux, lucis',
+    { word:'luz', pos:'名词', gender:'f', root:'luc-/luz', rootMeaning:'💡光', latinOrigin:'lux, lucis',
       meaning:'💡光；光明', breakdown:'luz(光，来自 luc-)',
       analysis:'拉丁 lux（主格）/ lucis（属格）→ 西语 luz。词根 lumin-/luc- 表「光」。',
       etymology:'拉丁 lux, lucis → 西语 luz（c→z 音变）。同根：lunar, iluminar, lumbrera。',
       englishCognate:'light / lucid / luminous', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['La luz del sol. — 太阳的光。'], related:['iluminar','lunar','lumbrera'], tags:['自然·天文·地理·生物 > 光'], createdAt:now+9 },
-    { word:'decir', pos:'动词', root:'dic-/dec-', rootMeaning:'说', latinOrigin:'dicere', verbClass:'-ir', regularity:'不规则（e→i 词干变化）',
+    { word:'decir', pos:'动词', root:'dic-/dec-', rootMeaning:'🗣️说', latinOrigin:'dicere', verbClass:'-ir', regularity:'不规则（e→i 词干变化）',
       meaning:'🗣️说；告诉', breakdown:'dec-(说词根，来自 dic-) + -ir(动词后缀)',
       analysis:'拉丁 dicere「说」，印欧词根 *deik-「指出/说」。西语为不规则动词（e→i 词干变化）。',
       etymology:'拉丁 dicere → 西语 decir。同根：dictar, dictado, dictamen, edición, predicar。',
       englishCognate:'diction / dictate / dictionary', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['¿Qué dices? — 你说什么？'], related:['dictar','dictado','edición','predicar'], tags:['语言·文字·思维 > 词汇','动作·行为·过程 > 说'], createdAt:now+10 },
-    { word:'reconstrucción', pos:'名词', gender:'f', root:'struct-', rootMeaning:'建造', latinOrigin:'struct-',
+    { word:'reconstrucción', pos:'名词', gender:'f', root:'struct-', rootMeaning:'🏗️建造', latinOrigin:'struct-',
       meaning:'🏗️重建；重构', breakdown:'re-(再) + con-(共同) + struct-(建造) + -ción(动作名词后缀)',
       analysis:'完美展示西语三段拆解：re（再/回）+ con（共同/加强）+ struct（建造词根）+ -ción（动作结果名词化）。字面「再次共同建造」→「重建」。',
       etymology:'拉丁 restructuring 的后裔；struct- 来自 struere「堆叠/建造」的过去分词。-cción 来自拉丁 -ctionem。-ct- → -cc- 保留（书面色彩）。',

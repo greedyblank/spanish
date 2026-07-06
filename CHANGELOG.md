@@ -1,5 +1,16 @@
 # 更新记录 · CHANGELOG
 
+## 西3 — 6 项特性补全（参考韩/日）（2026-07-06）
+
+- **词根释义带 emoji**（#8）：种子 rootMeaning 加 emoji 前缀（hel-→❄️寒冷、凝固；am-→❤️爱；luz→💡光）；AI 新词条 prompt 引导 rootMeaning 开头带 1-2 emoji。
+- **POS 适用性过滤**（#9）：`FIELD_APPLICABILITY`（gender→名词/代词/数词/形容词；verbClass/regularity→动词）+ `_isFieldApplicable`；`applyCompletions` 硬过滤，AI 不会给动词填 gender、给名词填 verbClass。
+- **补全字段分组全选**（#12）：内容/分类/词法三组各有全选/全不选 + `setGroupFields`。
+- **标签浏览器 collapseAll**（#13）：`collapseAllTagTree` + 头部「▿ 全收缩」按钮。
+- **AI 标签重组**（#11）：完整实现（参考韩语）——`collectTagsForAI`/`buildTagRestructurePrompt`/`showTagRestructurePreview`（6 步清洗）/`retryMissingTagsAI`（仅补漏）+ 应用预览弹窗。
+- **双击联动核对**（#10）：确认 highlight/filter 解耦——单击词根只高亮不筛选，切到词根详情面板；默认全量显示。
+
+## 西2 — 参考韩日项目完善（中文化+语法字段+词根详情面板）（2026-07-06）
+
 ## 西1 — 初始版本（2026-07-06）
 
 基于韩语/日语姊妹项目架构，构建西班牙语词根词缀体系地图：
