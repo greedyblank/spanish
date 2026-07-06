@@ -1,0 +1,1754 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>西班牙语词根词缀体系地图 · Mapa Etimológico</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a0e1a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Eslabón">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --panel: rgba(255,255,255,0.04);
+    --border: rgba(255,255,255,0.08);
+    --accent: #38bdf8;
+    --accent2: #f43f5e;
+    --accent3: #34d399;
+    --accent4: #fbbf24;
+    --accent5: #a855f7;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background:
+      radial-gradient(ellipse at top left, rgba(56,189,248,0.08), transparent 50%),
+      radial-gradient(ellipse at bottom right, rgba(244,63,94,0.08), transparent 50%),
+      radial-gradient(ellipse at center, rgba(168,85,247,0.04), transparent 70%),
+      var(--bg);
+    min-height: 100vh;
+    color: #e2e8f0;
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  }
+  @media (max-width: 768px) {
+    input[type="text"], input[type="password"], input[type="search"],
+    input[type="email"], input[type="number"], input[type="url"],
+    textarea, select { font-size: 16px !important; }
+  }
+  .glass {
+    background: var(--panel);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border);
+  }
+  .gradient-text {
+    background: linear-gradient(135deg, #38bdf8 0%, #f43f5e 50%, #fbbf24 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .letter-btn, .root-item, .word-item {
+    transition: all 0.15s ease;
+    cursor: pointer;
+  }
+  .letter-btn:hover, .root-item:hover, .word-item:hover {
+    background: rgba(56,189,248,0.08);
+    transform: translateY(-1px);
+  }
+  .letter-btn.active, .root-item.active, .word-item.active {
+    background: linear-gradient(135deg, rgba(56,189,248,0.25), rgba(244,63,94,0.15));
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 18px rgba(56,189,248,0.25);
+  }
+  .fade-in { animation: fadeIn 0.3s ease-out; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px);} to {opacity:1; transform:translateY(0);} }
+  .modal-backdrop { background: rgba(0,0,0,0.7); backdrop-filter: blur(6px); }
+  textarea, input, select {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid var(--border);
+    color: #e2e8f0;
+    transition: all 0.15s ease;
+  }
+  textarea:focus, input:focus, select:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(56,189,248,0.15);
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+  .tag-pill {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 8px;
+    font-size: 10px;
+    background: rgba(56,189,248,0.15);
+    color: #7dd3fc;
+    border: 1px solid rgba(56,189,248,0.25);
+    cursor: pointer;
+  }
+  .tag-pill.selected { background: rgba(52,211,153,0.2); color:#6ee7b7; border-color:rgba(52,211,153,0.5); }
+  .morpheme { display:inline-block; padding:2px 8px; border-radius:6px; font-weight:600; margin:0 2px; }
+  .morph-prefix { background:rgba(251,191,36,0.15); color:#fde68a; border:1px solid rgba(251,191,36,0.3); }
+  .morph-root { background:rgba(56,189,248,0.15); color:#7dd3fc; border:1px solid rgba(56,189,248,0.3); font-size:1.05em; }
+  .morph-suffix { background:rgba(52,211,153,0.15); color:#6ee7b7; border:1px solid rgba(52,211,153,0.3); }
+  .morph-link { background:rgba(148,163,184,0.1); color:#cbd5e1; border:1px solid rgba(148,163,184,0.2); font-size:0.85em; }
+  .toast { animation: slideIn 0.3s ease-out; }
+  @keyframes slideIn { from { transform:translateX(100%); opacity:0;} to {transform:translateX(0); opacity:1;} }
+  kbd { display:inline-block; padding:1px 6px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:4px; font-family:monospace; font-size:11px; }
+  .recent-drawer-backdrop { position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.15); z-index:200; opacity:0; pointer-events:none; transition:opacity 0.25s ease; }
+  .recent-drawer-backdrop.open { opacity:1; pointer-events:auto; }
+  .recent-drawer { position:fixed; top:0; left:0; width:360px; max-width:85vw; height:100%; background:#0a0e1a; border-right:1px solid var(--border); z-index:201; overflow-y:auto; padding:20px; transform:translateX(-100%); transition:transform 0.3s cubic-bezier(0.4,0,0.2,1); }
+  .recent-drawer.open { transform:translateX(0); }
+  .recent-drawer-close { position:absolute; top:12px; right:12px; background:none; border:none; color:#64748b; font-size:18px; cursor:pointer; }
+  .empty-hint { text-align:center; padding:48px 16px; color:#64748b; font-size:13px; }
+</style>
+</head>
+<body>
+
+<!-- ============================== Header ============================== -->
+<header id="app-header" class="sticky top-0 z-40 glass border-b border-white/10">
+  <div class="max-w-[1600px] mx-auto px-4 py-2.5 flex flex-wrap items-center gap-3">
+    <div class="flex items-center gap-2 shrink-0">
+      <h1 class="text-xl font-bold gradient-text cursor-pointer" onclick="toggleRecentDrawer()" title="最近添加（抽屉）">西班牙语词根地图</h1>
+      <span class="text-xs text-slate-500 font-mono hidden md:inline">Eslabones</span>
+    </div>
+    <div id="header-collapsible" class="flex flex-wrap items-center gap-3 ml-auto">
+      <div class="flex items-center gap-3 text-xs text-slate-400">
+        <div class="flex items-center gap-1"><span class="text-[#38bdf8] font-bold text-sm" id="stat-words">0</span><span>词条</span></div>
+        <div class="flex items-center gap-1"><span class="text-[#f43f5e] font-bold text-sm" id="stat-roots">0</span><span>词根</span></div>
+        <div class="flex items-center gap-1"><span class="text-[#34d399] font-bold text-sm" id="stat-letters">0</span><span>/27 字母</span></div>
+      </div>
+      <div class="flex flex-wrap items-center gap-1.5 justify-end">
+        <button onclick="openAIAddModal()" class="px-2.5 py-1.5 text-xs rounded-lg bg-gradient-to-r from-[#a855f7]/25 to-[#ec4899]/25 hover:from-[#a855f7]/35 hover:to-[#ec4899]/35 border border-[#a855f7]/40 text-[#d8b4fe] transition" title="输入西语或中文，AI 自动分析补全">✨ AI 新词条</button>
+        <button onclick="openAIModal()" id="ai-btn" class="px-2.5 py-1.5 text-xs rounded-lg bg-gradient-to-r from-[#a855f7]/25 to-[#ec4899]/25 hover:from-[#a855f7]/35 hover:to-[#ec4899]/35 border border-[#a855f7]/40 text-[#d8b4fe] transition">✨ AI 补全</button>
+        <button onclick="openSettingsModal()" class="w-8 h-8 flex items-center justify-center text-sm rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-slate-200 transition" title="系统设置">⚙</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 搜索栏 -->
+  <div class="max-w-[1600px] mx-auto px-4 pb-2.5">
+    <div class="relative flex items-center gap-1.5">
+      <div class="relative flex-1">
+        <input id="search-input" type="text" placeholder="搜索：palabra / 拉丁词根 / 释义 / 标签 …  (快捷键 /)"
+               oninput="onSearch(this.value)"
+               class="w-full rounded-xl py-2 pl-20 text-sm placeholder-slate-500" />
+        <button onclick="clearAllFilters()" class="absolute left-1.5 top-1/2 -translate-y-1/2 flex items-center gap-1 px-2 py-0.5 text-[10px] rounded-md bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-slate-200 transition" title="清除搜索（保留字母/词根/标签选中状态）">
+          <span class="text-slate-500">🔍</span>清搜
+        </button>
+        <span id="search-clear" class="hidden absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 cursor-pointer text-sm" onclick="clearSearch()">✕</span>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============================== Letter Atlas ============================== -->
+<section class="max-w-[1600px] mx-auto px-4 mt-6">
+  <div class="flex items-baseline justify-between mb-3 cursor-pointer select-none" onclick="toggleLetterAtlas()">
+    <h2 class="text-sm font-semibold text-slate-400 uppercase tracking-wider hover:text-slate-200 transition">
+      <span id="atlas-arrow">▾</span> 字母导图 · Atlas A-Z（音·形·义）
+    </h2>
+    <span class="text-xs text-slate-500">按发音部位分组 · 点击进入</span>
+  </div>
+  <div id="letter-grid" class="space-y-2"></div>
+</section>
+
+<!-- ============================== Main 3-pane View ============================== -->
+<section class="max-w-[1600px] mx-auto px-4 mt-6 mb-16">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 min-h-[600px]">
+    <!-- Pane 1: 词根/词缀 -->
+    <div class="lg:col-span-2 glass rounded-2xl p-3 flex flex-col">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-1.5">
+          <button id="back-to-all-btn" class="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition" style="display:none;" onclick="backToAll()" title="返回全部词根">← 返回</button>
+          <span id="roots-title">词根列表</span>
+        </h3>
+        <div class="flex items-center gap-1.5"><span id="roots-count" class="text-xs text-slate-500"></span></div>
+      </div>
+      <div id="roots-list" class="space-y-1 overflow-y-auto flex-1 max-h-[70vh]"></div>
+    </div>
+    <!-- Pane 2: 词条 -->
+    <div class="lg:col-span-4 glass rounded-2xl p-4 flex flex-col">
+      <div class="flex items-center justify-between mb-3">
+        <h3 class="text-sm font-semibold text-slate-300"><span id="words-title">词条</span><span id="words-count" class="text-xs text-slate-500 ml-1"></span></h3>
+        <div class="flex items-center gap-1">
+          <button onclick="clearTagFilter()" class="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition" title="清除标签筛选">清签</button>
+          <button onclick="clearAllFilters()" class="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition" title="清除全部筛选">清搜</button>
+        </div>
+      </div>
+      <div id="words-list" class="space-y-2 overflow-y-auto flex-1 max-h-[70vh]"></div>
+    </div>
+    <!-- Pane 3: 详情 -->
+    <div class="lg:col-span-6 glass rounded-2xl p-5 flex flex-col">
+      <div id="detail-panel" class="flex-1"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================== Tag Cloud ============================== -->
+<section id="tag-cloud-section" class="max-w-[1600px] mx-auto px-4 mb-16">
+  <div class="glass rounded-2xl p-4">
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <div class="flex items-baseline gap-2 cursor-pointer select-none" onclick="toggleTagCloudSection()">
+        <h2 class="text-sm font-semibold text-slate-300 hover:text-white transition"><span id="tag-cloud-arrow">▸</span> 🏷 标签云</h2>
+        <span class="text-xs text-slate-500">点标题展开 · 点卡片看子标签</span>
+      </div>
+    </div>
+    <div id="tag-cloud" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5 hidden"></div>
+    <div id="tag-cloud-detail" class="mt-2 hidden"></div>
+  </div>
+</section>
+
+<!-- ============================== 最近添加（抽屉）============================== -->
+<div class="recent-drawer-backdrop" id="recent-drawer-backdrop" onclick="toggleRecentDrawer()"></div>
+<div class="recent-drawer" id="recent-drawer">
+  <button class="recent-drawer-close" onclick="toggleRecentDrawer()" title="关闭">✕</button>
+  <h3 style="margin:0 0 14px;font-size:15px;">🕘 最近添加</h3>
+  <div style="margin:8px 0;display:flex;gap:6px;">
+    <button class="recent-n-btn px-3 py-1 text-xs rounded-lg border border-white/10 bg-[#38bdf8]/20 text-[#7dd3fc]" onclick="setRecentN(10,event)">10</button>
+    <button class="recent-n-btn px-3 py-1 text-xs rounded-lg border border-white/10 text-slate-400" onclick="setRecentN(20,event)">20</button>
+    <button class="recent-n-btn px-3 py-1 text-xs rounded-lg border border-white/10 text-slate-400" onclick="setRecentN(50,event)">50</button>
+  </div>
+  <div id="recent-list"></div>
+</div>
+
+<!-- ============================== Add/Edit Modal ============================== -->
+<div id="add-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+  <div class="glass rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4">
+      <h3 id="add-modal-title" class="text-lg font-bold text-white">新增词条</h3>
+      <button onclick="closeAddModal()" class="text-slate-400 hover:text-white">✕</button>
+    </div>
+    <input type="hidden" id="edit-id">
+    <div class="space-y-3 text-sm">
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-slate-400 block mb-1">单词 Palabra *</label><input id="add-word" type="text" placeholder="如 helado" class="w-full rounded-lg px-3 py-2"></div>
+        <div><label class="text-xs text-slate-400 block mb-1">词性 POS</label>
+          <select id="add-pos" class="w-full rounded-lg px-3 py-2"><option value="">—</option><option>sustantivo</option><option>verbo</option><option>adjetivo</option><option>adverbio</option><option>pronombre</option><option>preposición</option><option>conjunción</option><option>artículo</option><option>numeral</option><option>interjección</option><option>sufijo</option><option>prefijo</option><option>raíz</option></select></div>
+      </div>
+      <div class="grid grid-cols-3 gap-3">
+        <div><label class="text-xs text-slate-400 block mb-1">词根 Raíz</label><input id="add-root" type="text" placeholder="hel-" class="w-full rounded-lg px-3 py-2"></div>
+        <div><label class="text-xs text-slate-400 block mb-1">词根义</label><input id="add-rootMeaning" type="text" placeholder="寒冷、凝固" class="w-full rounded-lg px-3 py-2"></div>
+        <div><label class="text-xs text-slate-400 block mb-1">拉丁语源</label><input id="add-latinOrigin" type="text" placeholder="gelatus" class="w-full rounded-lg px-3 py-2"></div>
+      </div>
+      <div><label class="text-xs text-slate-400 block mb-1">释义 Meaning *（多个义项用 ; 分号；开头可放 emoji）</label><input id="add-meaning" type="text" placeholder="🍦冰淇淋；冰冻的" class="w-full rounded-lg px-3 py-2"></div>
+      <div><label class="text-xs text-slate-400 block mb-1">形态拆解 Breakdown</label><input id="add-breakdown" type="text" placeholder="hel-(寒冷) + -ado(过去分词后缀)" class="w-full rounded-lg px-3 py-2"></div>
+      <div><label class="text-xs text-slate-400 block mb-1">词根语义分析 Análisis</label><textarea id="add-analysis" rows="3" placeholder="50-150 字，词根核心动作 + 派生流转" class="w-full rounded-lg px-3 py-2"></textarea></div>
+      <div><label class="text-xs text-slate-400 block mb-1">词源追溯 Etymology</label><textarea id="add-etymology" rows="3" placeholder="拉丁语 → 古西班牙语 → 现代形式（含音变）" class="w-full rounded-lg px-3 py-2"></textarea></div>
+      <div class="grid grid-cols-2 gap-3">
+        <div><label class="text-xs text-slate-400 block mb-1">英语同源</label><input id="add-englishCognate" type="text" placeholder="gelatin / gelato" class="w-full rounded-lg px-3 py-2"></div>
+        <div><label class="text-xs text-slate-400 block mb-1">词源层次</label>
+          <select id="add-etymologyTier" class="w-full rounded-lg px-3 py-2"><option value="">—</option><option>通俗拉丁语继承词</option><option>古典拉丁语借词</option><option>希腊语来源</option><option>阿拉伯语来源</option><option>日耳曼语来源</option><option>法语借词</option><option>意大利语借词</option><option>英语借词</option><option>美洲原住民语言</option><option>内部新造词</option></select></div>
+      </div>
+      <div><label class="text-xs text-slate-400 block mb-1">相关词 Related（空格分隔）</label><input id="add-related" type="text" placeholder="helar helada hielo" class="w-full rounded-lg px-3 py-2"></div>
+      <div><label class="text-xs text-slate-400 block mb-1">例句 Examples（每行一条："西语 — 中文"）</label><textarea id="add-examples" rows="3" placeholder="Quiero un helado. — 我想要一个冰淇淋" class="w-full rounded-lg px-3 py-2"></textarea></div>
+      <div><label class="text-xs text-slate-400 block mb-1">标签 Tags（空格分隔，格式「一级大类 > 二级子类」）</label><input id="add-tags" type="text" placeholder="饮食·食物 > 甜品" class="w-full rounded-lg px-3 py-2"></div>
+      <div><label class="text-xs text-slate-400 block mb-1">笔记 Notes</label><textarea id="add-notes" rows="2" placeholder="个人联想、记忆法" class="w-full rounded-lg px-3 py-2"></textarea></div>
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button onclick="closeAddModal()" class="px-4 py-2 text-sm rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300">取消</button>
+      <button onclick="saveEntry()" class="px-4 py-2 text-sm rounded-lg bg-[#38bdf8] hover:bg-[#0ea5e9] text-slate-900 font-semibold">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== Bulk Paste Modal ============================== -->
+<div id="paste-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+  <div class="glass rounded-2xl p-6 max-w-xl w-full">
+    <div class="flex items-center justify-between mb-3"><h3 class="text-lg font-bold text-white">批量粘贴导入</h3><button onclick="closePasteModal()" class="text-slate-400 hover:text-white">✕</button></div>
+    <p class="text-xs text-slate-400 mb-2">每行一个单词。系统会自动识别词根、拉丁化与释义。</p>
+    <textarea id="paste-textarea" rows="8" class="w-full rounded-lg px-3 py-2 text-sm" placeholder="helado 冰淇淋&#10;helar 结冰&#10;gelatina 明胶"></textarea>
+    <div id="paste-preview" class="hidden mt-3 text-xs"></div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button onclick="closePasteModal()" class="px-4 py-2 text-sm rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300">取消</button>
+      <button onclick="confirmPaste()" class="px-4 py-2 text-sm rounded-lg bg-[#f43f5e] hover:bg-[#e11d48] text-white font-semibold">导入</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== AI Add Entry Modal ============================== -->
+<div id="ai-add-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+  <div class="glass rounded-2xl p-6 max-w-xl w-full">
+    <div class="flex items-center justify-between mb-3"><h3 class="text-lg font-bold text-white">✨ AI 新词条</h3><button onclick="closeAIAddModal()" class="text-slate-400 hover:text-white">✕</button></div>
+    <p class="text-xs text-slate-400 mb-3">输入<span class="text-[#7dd3fc]">西班牙语</span>或<span class="text-[#fbbf24]">中文</span>，AI 自动补全词根、拉丁语源、形态拆解、词族、同源词、例句。回车触发。</p>
+    <div class="flex gap-2 mb-3">
+      <div class="relative flex-1">
+        <input id="ai-add-input" type="text" placeholder="如：helado / 冰淇淋 / reconstrucción"
+               oninput="document.getElementById('ai-add-clear').classList.toggle('hidden', !this.value)"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();runAINewEntry();}"
+               class="w-full rounded-lg px-3 py-2 pl-9 text-sm bg-black/30 border border-white/15 text-white placeholder-slate-500 focus:outline-none focus:border-[#a855f7] focus:ring-2 focus:ring-[#a855f7]/30 transition">
+        <button id="ai-add-clear" onclick="document.getElementById('ai-add-input').value='';document.getElementById('ai-add-input').focus();this.classList.add('hidden');" class="hidden absolute left-2 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-white text-xs transition" title="清除输入">✕</button>
+        <button onclick="runAINewEntry()" id="ai-add-btn" class="px-4 py-2 text-sm rounded-lg bg-gradient-to-r from-[#a855f7] to-[#ec4899] hover:opacity-90 text-white font-semibold whitespace-nowrap transition" style="position:absolute;right:4px;top:50%;transform:translateY(-50%);">分析</button>
+      </div>
+    </div>
+    <div id="ai-add-status" class="hidden mb-3 text-xs px-3 py-2 rounded-lg"></div>
+    <div id="ai-add-preview" class="hidden"></div>
+  </div>
+</div>
+
+<!-- ============================== Tag Browser Modal ============================== -->
+<div id="tag-browser-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+  <div class="glass rounded-2xl p-4 max-w-5xl w-full max-h-[88vh] flex flex-col">
+    <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+      <h3 class="text-lg font-bold text-white">🏷 标签体系浏览器</h3>
+      <div class="flex items-center gap-2">
+        <input id="tag-browser-search" type="text" placeholder="过滤标签..." oninput="onTagBrowserSearch(this.value)" class="rounded-lg px-3 py-1.5 text-xs">
+        <button onclick="restructureTagsWithAI()" class="px-2.5 py-1.5 text-xs rounded-lg bg-gradient-to-r from-[#a855f7]/25 to-[#ec4899]/25 border border-[#a855f7]/40 text-[#d8b4fe]">✨ AI 重组</button>
+        <button onclick="closeTagBrowser()" class="text-slate-400 hover:text-white">✕</button>
+      </div>
+    </div>
+    <div class="flex gap-4 flex-1 min-h-0">
+      <div class="w-1/2 overflow-y-auto pr-2 border-r border-white/10"><div id="tag-tree" class="text-sm"></div></div>
+      <div class="flex-1 overflow-y-auto p-2" id="tag-detail"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== LLM Settings Modal ============================== -->
+<div id="settings-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+  <div class="glass rounded-2xl p-6 max-w-xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-4"><h3 class="text-lg font-bold text-white">⚙️ 系统设置</h3><button onclick="closeSettingsModal()" class="text-slate-400 hover:text-white">✕</button></div>
+    <div class="flex flex-wrap gap-1.5 mb-4 pb-4 border-b border-white/10">
+      <button onclick="closeSettingsModal(); openAddModal()" class="px-2 py-1 text-[10px] rounded-md bg-[#38bdf8]/15 border border-[#38bdf8]/30 text-[#7dd3fc]">+ 新词条</button>
+      <button onclick="closeSettingsModal(); openPasteModal()" class="px-2 py-1 text-[10px] rounded-md bg-[#f43f5e]/15 border border-[#f43f5e]/30 text-[#fda4af]">♨ 粘贴</button>
+      <button onclick="closeSettingsModal(); openTagBrowser()" class="px-2 py-1 text-[10px] rounded-md bg-[#34d399]/15 border border-[#34d399]/30 text-[#6ee7b7]">🏷 标签浏览器</button>
+      <button onclick="closeSettingsModal(); openSyncModal()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300">☁️ 多端同步</button>
+      <button onclick="exportJSON()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300">↓ 导出</button>
+      <label class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300 cursor-pointer">↑ 导入<input type="file" accept=".json" onchange="importJSON(event)" class="hidden"></label>
+      <button onclick="closeSettingsModal(); confirmReset()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 hover:bg-[#f43f5e]/20 border border-white/10 text-slate-400 hover:text-[#fda4af]">↺ 重置</button>
+    </div>
+    <div class="flex gap-1 mb-4 bg-white/5 rounded-lg p-1">
+      <button id="tab-btn-primary" onclick="switchLLMTab('primary')" class="flex-1 px-3 py-1.5 text-xs rounded-md font-semibold transition">🧠 主 LLM <span class="text-[10px] opacity-70">(新词条)</span></button>
+      <button id="tab-btn-completion" onclick="switchLLMTab('completion')" class="flex-1 px-3 py-1.5 text-xs rounded-md font-semibold transition">✨ 补全 LLM <span class="text-[10px] opacity-70">(批量填充)</span></button>
+    </div>
+    <div id="reuse-primary-row" class="hidden mb-3">
+      <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer">
+        <input id="set-reuse-primary" type="checkbox" class="w-3 h-3 accent-[#34d399]" onchange="onReuseToggle()"> 与主 LLM 相同（补全槽复用主槽配置）
+      </label>
+    </div>
+    <div id="tab-hint" class="text-[10px] text-slate-500 mb-3"></div>
+    <div class="space-y-3 text-sm">
+      <div><label class="text-xs text-slate-400 block mb-1">服务商 Provider</label>
+        <select id="set-provider" onchange="onProviderChange()" class="w-full rounded-lg px-3 py-2">
+          <option value="glm_anthropic">智谱 GLM (Anthropic 兼容) ⭐ 推荐</option>
+          <option value="glm">智谱 GLM (OpenAI v4 兼容)</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="moonshot">Moonshot Kimi</option>
+          <option value="openai">OpenAI</option>
+          <option value="anthropic">Anthropic Claude</option>
+          <option value="custom">自定义</option>
+        </select></div>
+      <div><label class="text-xs text-slate-400 block mb-1">Endpoint</label><input id="set-endpoint" type="text" class="w-full rounded-lg px-3 py-2"></div>
+      <div><label class="text-xs text-slate-400 block mb-1">Model</label><input id="set-model" type="text" class="w-full rounded-lg px-3 py-2"></div>
+      <div><label class="text-xs text-slate-400 block mb-1">API Key</label>
+        <div class="flex gap-2"><input id="set-apikey" type="password" class="flex-1 rounded-lg px-3 py-2"><button onclick="toggleKeyVisibility()" id="key-vis-btn" class="px-3 py-2 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-300">显示</button></div></div>
+      <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer"><input id="set-use-proxy" type="checkbox" class="w-3 h-3 accent-[#34d399]"> 使用本地代理（解决 CORS，运行 <code>python3 glm_proxy.py</code>）</label>
+    </div>
+    <div class="flex justify-end gap-2 mt-4">
+      <button onclick="testLLM()" class="px-3 py-2 text-xs rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300">🔗 测试连接</button>
+      <button onclick="saveSettings()" class="px-4 py-2 text-sm rounded-lg bg-[#38bdf8] hover:bg-[#0ea5e9] text-slate-900 font-semibold">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== 多端同步 Modal ============================== -->
+<div id="sync-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+  <div class="glass rounded-2xl p-6 max-w-md w-full">
+    <div class="flex items-center justify-between mb-3"><h3 class="text-lg font-bold text-white">☁️ 多端同步（GitHub Gist）</h3><button onclick="closeSyncModal()" class="text-slate-400 hover:text-white">✕</button></div>
+    <div class="space-y-3 text-sm">
+      <div id="sync-status-row" class="text-xs text-slate-400"></div>
+      <div><label class="text-xs text-slate-400 block mb-1">GitHub Token</label><input id="sync-token" type="password" class="w-full rounded-lg px-3 py-2" placeholder="ghp_..."></div>
+      <div><label class="text-xs text-slate-400 block mb-1">Gist ID</label><input id="sync-gistid" type="text" class="w-full rounded-lg px-3 py-2" placeholder="留空则点下方自动创建"></div>
+      <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer"><input id="sync-auto" type="checkbox" class="w-3 h-3 accent-[#34d399]" checked> 自动同步（每次修改后上传）</label>
+      <div class="flex flex-wrap gap-2 pt-2">
+        <button onclick="createGist()" class="px-3 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-300">✨ 自动创建 Gist</button>
+        <button onclick="syncNow()" class="px-3 py-1.5 text-xs rounded-lg bg-[#38bdf8]/20 border border-[#38bdf8]/40 text-[#7dd3fc]">🔄 立即同步</button>
+        <button onclick="closeSyncModal()" class="px-3 py-1.5 text-xs rounded-lg bg-white/5 border border-white/10 text-slate-300">取消</button>
+        <button onclick="saveSyncSettings()" class="px-3 py-1.5 text-xs rounded-lg bg-[#38bdf8] text-slate-900 font-semibold">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== AI Completion Modal ============================== -->
+<div id="ai-modal" class="hidden fixed inset-0 z-50 modal-backdrop flex items-center justify-center p-4">
+  <div class="glass rounded-2xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="flex items-center justify-between mb-3"><h3 class="text-lg font-bold text-white">✨ AI 自动补全</h3><button onclick="closeAIModal()" class="text-slate-400 hover:text-white">✕</button></div>
+    <div id="ai-scan-panel" class="space-y-3">
+      <div id="ai-scan-result" class="text-sm text-slate-300"></div>
+      <div class="bg-white/[0.03] border border-white/10 rounded-lg p-3">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-[#d8b4fe] font-semibold">补全字段（自选）</span>
+          <label class="flex items-center gap-1 cursor-pointer text-slate-300 text-[10px]"><input id="comp-only-empty" type="checkbox" class="w-3 h-3 accent-[#34d399]" onchange="toggleCompletionOnlyIfEmpty(this.checked)" checked><span>仅填空字段</span></label>
+        </div>
+        <div id="comp-field-grid" class="grid grid-cols-3 md:grid-cols-4 gap-1.5 text-[11px]"></div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeAIModal()" class="px-4 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-slate-300">取消</button>
+        <button onclick="runAICompletion()" id="ai-run-btn" class="px-4 py-2 text-sm rounded-lg bg-gradient-to-r from-[#a855f7] to-[#ec4899] text-white font-semibold">开始补全</button>
+      </div>
+    </div>
+    <div id="ai-progress-panel" class="hidden space-y-3">
+      <div class="flex items-center justify-between text-sm"><span class="text-slate-300">进度</span><span id="ai-progress-text" class="text-[#d8b4fe] font-mono">0 / 0</span></div>
+      <div class="w-full bg-white/5 rounded-full h-2 overflow-hidden"><div id="ai-progress-bar" class="bg-gradient-to-r from-[#a855f7] to-[#ec4899] h-2 transition-all duration-300" style="width:0%"></div></div>
+      <div id="ai-current" class="text-xs text-slate-400 font-mono">准备中...</div>
+      <div id="ai-log" class="text-xs text-slate-500 font-mono bg-black/30 rounded-lg p-3 max-h-48 overflow-y-auto space-y-0.5"></div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="cancelAICompletion()" id="ai-cancel-btn" class="px-4 py-2 text-sm rounded-lg bg-[#f43f5e]/20 border border-[#f43f5e]/40 text-[#fda4af]">停止</button>
+        <button onclick="backgroundAICompletion()" id="ai-bg-running-btn" class="px-4 py-2 text-sm rounded-lg bg-[#fbbf24]/15 border border-[#fbbf24]/30 text-[#fde68a]" title="关闭弹窗，任务在后台继续">后台运行</button>
+        <button onclick="closeAIModal()" id="ai-close-btn" class="hidden px-4 py-2 text-sm rounded-lg bg-[#38bdf8] text-slate-900 font-semibold">完成</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== Toast ============================== -->
+<div id="toast-container" class="fixed top-4 right-4 z-[100] space-y-2"></div>
+
+<!-- ============================== Floating Help ============================== -->
+<div class="fixed bottom-4 left-4 z-30">
+  <details class="glass rounded-xl px-3 py-2 text-xs text-slate-400">
+    <summary class="cursor-pointer">快捷键</summary>
+    <div class="mt-2 space-y-1 leading-relaxed">
+      <div><kbd>/</kbd> 搜索　<kbd>N</kbd> 新词条　<kbd>Shift+A</kbd> AI新词条</div>
+      <div><kbd>H</kbd> 折叠头部　双击词条→词根联动</div>
+    </div>
+  </details>
+</div>
+
+<script>
+// =========================================================================
+// 西班牙语词根词缀体系地图 — 单文件应用
+// 架构源自韩/日语姊妹项目，适配西班牙语：A-Z 字母 + 词根/词缀 + 拉丁语源 + 音变
+// =========================================================================
+
+// ----- A-Z 字母音形义数据（源自设计文档：史源/音感/字形意象）-----
+const LETTERS = [
+  { c:'A', sound:'/a/', proto:'aleph（牛头）', action:'张口、开放、强烈', image:'牛角、山峰、顶点、打开、开始', group:'Vocales' },
+  { c:'B', sound:'/be/', proto:'beth（房屋）', action:'双唇闭合爆破，浊而饱满', image:'房屋、身体、鼓包、弹跳、容纳', group:'Bilabiales' },
+  { c:'C', sound:'/θ//k//s/', proto:'gimel（投掷棒）', action:'/k/硬短切断；/s/细滑嘶响', image:'开口圆环、容器、弯曲；一字多音', group:'Velares' },
+  { c:'D', sound:'/de/', proto:'daleth（门）', action:'舌尖闭塞后释放，敲击推进', image:'门、边界、落下、打击、方向', group:'Dentales' },
+  { c:'E', sound:'/e/', proto:'he（窗）', action:'前元音，较轻、近', image:'延伸、能量、展开；层级', group:'Vocales' },
+  { c:'F', sound:'/efe/', proto:'waw（钩子）', action:'持续吹气摩擦，轻散流动', image:'风、火焰、飞散；fl-流动感', group:'Fricativas' },
+  { c:'G', sound:'/xe//ge/', proto:'由C加横笔', action:'/g/厚重；/x/骤然后部摩擦', image:'抓握、重力、研磨；gr-粗糙', group:'Velares' },
+  { c:'H', sound:'∅（哑音）', proto:'ḥēt（院墙）', action:'历史上呼气，现已沉默', image:'呼吸、热、空、气流、围栏；f→h痕迹', group:'Fricativas' },
+  { c:'I', sound:'/i/', proto:'yod（手）', action:'高前元音，小、细、亮', image:'细线、个体、针、竖立', group:'Vocales' },
+  { c:'J', sound:'/xe/', proto:'由I分化', action:'后部强烈摩擦', image:'跳跃、戳击、急转', group:'Velares' },
+  { c:'K', sound:'/ka/', proto:'kaph（手掌）', action:'无声软腭塞音，干脆尖硬', image:'切、撞、裂（借词为主）', group:'Velares' },
+  { c:'L', sound:'/ele/', proto:'lamed（牧杖）', action:'气流从舌侧平滑流过，柔滑连续', image:'线、长、流、柔和', group:'Líquidas' },
+  { c:'M', sound:'/eme/', proto:'mem（水）', action:'闭唇鼻音，低沉温和包裹', image:'水波、母体、柔软、团块', group:'Bilabiales' },
+  { c:'N', sound:'/ene/', proto:'nun（鱼/蛇）', action:'鼻音，连续但更细更内收', image:'内部、狭窄、巢穴、连续', group:'Dentales' },
+  { c:'Ñ', sound:'/ɲe/', proto:'NN 缩合', action:'舌面鼻塞音，腭化共鸣', image:'波浪、柔软、温暖（西语特有）', group:'Palatales' },
+  { c:'O', sound:'/o/', proto:'ʿayin（眼）', action:'圆唇后元音，圆大完整', image:'眼睛、圆、洞、整体、循环', group:'Vocales' },
+  { c:'P', sound:'/pe/', proto:'pe（嘴）', action:'双唇无声爆破，轻爆弹出', image:'嘴、点、针刺、爆开', group:'Bilabiales' },
+  { c:'Q', sound:'/ke/', proto:'qoph（针眼）', action:'/k/ + 滑音（que/qui 中u不发音）', image:'孔、快速（仅用于que/qui）', group:'Velares' },
+  { c:'R', sound:'/erre/', proto:'resh（头）', action:'颤音，滚动摩擦粗糙有力', image:'头、滚动、撕裂、粗糙、吼叫', group:'Líquidas' },
+  { c:'S', sound:'/ese/', proto:'shin（牙）', action:'持续嘶响，可滑行穿行', image:'蛇、流线、速度、滑动', group:'Fricativas' },
+  { c:'T', sound:'/te/', proto:'taw（记号）', action:'舌尖迅速闭塞，短尖准确', image:'点、顶端、敲击、刻度', group:'Dentales' },
+  { c:'U', sound:'/u/', proto:'与V同源', action:'圆唇后元音，深圆饱满', image:'杯、凹槽、容纳', group:'Vocales' },
+  { c:'V', sound:'/be/', proto:'与U同源', action:'（西语中与B同音）', image:'震动、速度、尖谷', group:'Bilabiales' },
+  { c:'W', sound:'/uve doble/', proto:'double U', action:'/w/圆唇滑向元音', image:'波浪、风、旋转（借词）', group:'Raras' },
+  { c:'X', sound:'/eks//ks/', proto:'西部希腊字母', action:'/ks/两辅音压缩收束', image:'交叉、切割、未知、混合', group:'Raras' },
+  { c:'Y', sound:'/je//i/', proto:'upsilon', action:'/j/滑音；亦表元音', image:'分叉、选择、道路', group:'Palatales' },
+  { c:'Z', sound:'/θe//se/', proto:'zayin（武器）', action:'持续有声摩擦，蜂鸣', image:'锯齿、之字、快速', group:'Fricativas' },
+];
+const LETTER_GROUPS_ORDER = ['Vocales','Bilabiales','Dentales','Velares','Palatales','Fricativas','Líquidas','Raras'];
+
+// ----- 拉丁语→西班牙语历史音变规则（= 造物主矩阵）-----
+const SOUND_CHANGES = [
+  { rule:'f- → h-（→∅）', ex:'farīna → harina（面粉）；fīlum → hilo（线）', note:'古西班牙语 f- 在词首变为 h-（喉擦音），现代 h 不发音。' },
+  { rule:'ĕ → ie（裂元音）', ex:'petram → piedra（石头）；templum → tiempo（时间）', note:'拉丁短元音 ĕ 在重读音节裂化为 ie。' },
+  { rule:'ŏ → ue（裂元音）', ex:'novum → nuevo（新的）；portam → puerta（门）', note:'拉丁短元音 ŏ 裂化为 ue。' },
+  { rule:'pl-/cl-/fl- → ll-', ex:'plorum → lloro；clavem → llave（钥匙）；flamam → llama（火焰）', note:'复辅音群腭化为 ll。' },
+  { rule:'-ct- → -ch-', ex:'octō → ocho（八）；lactem → leche（牛奶）；noctem → noche（夜）', note:'ct 组合去塞化成 ch。' },
+  { rule:'g-/j- → /x/', ex:'gelatus→helado（但 g→h）；iānuārius→enero；现代 j/g(e,i) 均为 /x/', note:'后部擦音化。' },
+  { rule:'双拉丁词（通俗继承 vs 书面借词）', ex:'fabricam→fragua（炉）vs fábrica（工厂）；artem→arte vs articulación', note:'同一拉丁源常产生一对词：通俗音变词 + 文艺复兴借词。' },
+];
+
+// ----- 常见拉丁词根速查（AI 参考）-----
+const COMMON_LATIN_ROOTS = [
+  'am-（爱）amare→amar', 'lumin-/luz（光）', 'dic-/dict-（说）decir→dictar', 'fac-/fec-（做）hacer',
+  'cap-/capt-（取）capturar', 'port-（搬运）portar', 'struct-（建造）construir', 'duct-（引导）conducir',
+  'scrib-/script-（写）escribir', 'leg-/lect-（读/选）leer', 'mitt-/miss-（送）meter', 'pend-/pens-（悬挂）',
+  'ten-/tent-（持）tener', 'ven-/vent-（来）venir', 'vid-/vis-（看）ver', 'aud-（听）oír',
+  'gel-（冷/凝）→hel-（西语 f→h 同源变体：gelatus→helado）',
+];
+
+// =========================================================================
+// 持久化
+// =========================================================================
+const STORAGE_KEY = 'spanish_etymology_map_v1';
+const TAGGRAPH_KEY = 'spanish_etymology_taggraph_v1';
+const TOMBSTONES_KEY = 'spanish_etymology_tombstones_v1';
+const SETTINGS_KEY = 'spanish_etymology_settings_v1';
+const SYNC_KEY = 'spanish_etymology_sync_v1';
+const GIST_FILE = 'spanish_etymology_payload.json';
+
+let state = {
+  entries: [],
+  tagGraph: {},
+  tombstones: [],
+  tagGraphUpdatedAt: 0,
+  filter: { letter: null, root: null, search: '' },
+  highlightRoot: null,
+  selectedEntryId: null,
+  editingEntryId: null,
+};
+let tagCloudState = { selectedTag:null, expandedRoot:null, expanded:new Set() };
+let tagBrowserState = { selectedTag:null, expanded:new Set(), search:'' };
+
+function uid() { return 'e-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7); }
+
+function save() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries));
+    localStorage.setItem(TAGGRAPH_KEY, JSON.stringify(state.tagGraph||{}));
+    localStorage.setItem(TOMBSTONES_KEY, JSON.stringify(state.tombstones||[]));
+  } catch(e){ toast('保存失败：'+e.message,'error'); }
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) state.entries = JSON.parse(raw);
+    const tg = localStorage.getItem(TAGGRAPH_KEY);
+    state.tagGraph = tg ? JSON.parse(tg) : {};
+    const tb = localStorage.getItem(TOMBSTONES_KEY);
+    if (tb) state.tombstones = JSON.parse(tb);
+  } catch(e){ console.error('Load failed:',e); state.entries=[]; state.tagGraph={}; }
+}
+
+// =========================================================================
+// 同步 payload（Gist）
+// =========================================================================
+const SETTINGS2 = {};
+let syncConfig = { token:'', gistId:'', autoSync:true };
+let syncStatus = { busy:false, lastPushAt:0, lastPullAt:0, lastError:'' };
+let _lastPushedSig = '', _rateLimitedUntil = 0, _pushTimer = null, _visibilityBound = false;
+
+function loadSyncConfig() {
+  try { const r = localStorage.getItem(SYNC_KEY); if (r) syncConfig = { ...syncConfig, ...JSON.parse(r) }; } catch {}
+}
+function saveSyncConfig() { localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }
+function syncReady() { return !!(syncConfig.token && syncConfig.gistId); }
+function payloadSig(obj) { return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).slice(0,16); }
+function buildPayload() {
+  return {
+    entries: state.entries,
+    tagGraph: state.tagGraph,
+    tombstones: state.tombstones,
+    tagGraphUpdatedAt: state.tagGraphUpdatedAt,
+  };
+}
+function mergeState(local, remote) {
+  const byId = new Map();
+  [...local.entries, ...(remote.entries||[])].forEach(e => {
+    const ex = byId.get(e.id);
+    if (!ex || (e.updatedAt||0) > (ex.updatedAt||0)) byId.set(e.id, e);
+  });
+  const tomMap = new Map();
+  [...(local.tombstones||[]), ...(remote.tombstones||[])].forEach(t => tomMap.set(t.id, t));
+  // 应用墓碑
+  tomMap.forEach(t => byId.delete(t.id));
+  const ltg = local.tagGraphUpdatedAt||0, rtg = remote.tagGraphUpdatedAt||0;
+  return {
+    entries: [...byId.values()],
+    tombstones: [...tomMap.values()],
+    tagGraph: ltg >= rtg ? local.tagGraph : (remote.tagGraph||local.tagGraph),
+    tagGraphUpdatedAt: Math.max(ltg, rtg),
+  };
+}
+async function pushToGist(verbose) {
+  if (!syncReady() || syncStatus.busy) return;
+  if (Date.now() < _rateLimitedUntil) { if (verbose) toast('GitHub 限流冷却中','info'); return; }
+  const sig = payloadSig(buildPayload());
+  if (sig === _lastPushedSig) { if (verbose) toast('内容未变化','info'); return; }
+  syncStatus.busy = true;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${syncConfig.gistId}`, {
+      method:'PATCH',
+      headers:{'Authorization':`Bearer ${syncConfig.token}`,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
+      body: JSON.stringify({ description:'Spanish Etymology Map (auto-synced)', files:{ [GIST_FILE]:{ content: payloadSig(buildPayload()) } } }),
+    });
+    // 实际应上传完整 payload（简化：上传签名防重；完整数据用 patch）
+    const fullRes = await fetch(`https://api.github.com/gists/${syncConfig.gistId}`, {
+      method:'PATCH',
+      headers:{'Authorization':`Bearer ${syncConfig.token}`,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
+      body: JSON.stringify({ files:{ [GIST_FILE]:{ content: JSON.stringify(buildPayload()) } } }),
+    });
+    if (!fullRes.ok) throw new Error(`HTTP ${fullRes.status}`);
+    _lastPushedSig = payloadSig(buildPayload());
+    syncStatus.lastPushAt = Date.now();
+    syncStatus.lastError = '';
+    if (verbose) toast('已上传到云端','success');
+  } catch(e) {
+    syncStatus.lastError = '上传失败：'+e.message;
+    if (/403|rate limit/i.test(e.message)) { _rateLimitedUntil = Date.now()+5*60*1000; syncStatus.lastError='GitHub 限流，5 分钟后重试'; }
+    toast(syncStatus.lastError,'error');
+  } finally { syncStatus.busy=false; updateSyncStatusUI(); }
+}
+async function pullFromGist(verbose) {
+  if (!syncReady() || syncStatus.busy) return;
+  if (Date.now() < _rateLimitedUntil) { if (verbose) toast('GitHub 限流冷却中','info'); return; }
+  syncStatus.busy = true;
+  try {
+    const res = await fetch(`https://api.github.com/gists/${syncConfig.gistId}`, { headers:{'Authorization':`Bearer ${syncConfig.token}`,'Accept':'application/vnd.github+json'} });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const raw = data.files?.[GIST_FILE]?.content;
+    syncStatus.lastPullAt = Date.now();
+    if (!raw) { syncStatus.lastError=''; updateSyncStatusUI(); if (verbose) toast('云端为空，等待首次上传','info'); return; }
+    const remote = JSON.parse(raw);
+    if (!remote.entries) { syncStatus.lastError=''; updateSyncStatusUI(); return; }  // 旧签名格式
+    const before = payloadSig(buildPayload());
+    const merged = mergeState(buildPayload(), remote);
+    const after = payloadSig(merged);
+    if (after === before) { syncStatus.lastError=''; updateSyncStatusUI(); if (verbose) toast('已是最新','info'); return; }
+    state.entries = merged.entries;
+    state.tombstones = merged.tombstones;
+    state.tagGraph = merged.tagGraph;
+    state.tagGraphUpdatedAt = merged.tagGraphUpdatedAt;
+    _lastPushedSig = after;
+    save(); render(); updateStats();
+    syncStatus.lastError=''; updateSyncStatusUI();
+    toast('已同步云端数据','success');
+  } catch(e) {
+    syncStatus.lastError='拉取失败：'+e.message;
+    updateSyncStatusUI();
+    toast('拉取失败：'+e.message,'error');
+  } finally { syncStatus.busy=false; }
+}
+function scheduleCloudSync() { if (!syncConfig.autoSync || !syncReady()) return; clearTimeout(_pushTimer); _pushTimer = setTimeout(()=>pushToGist(false), 1500); }
+function startCloudSync() {
+  loadSyncConfig();
+  if (!syncReady()) return;
+  pullFromGist(true);
+  if (!_visibilityBound) {
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && syncReady()) pullFromGist(false); });
+    _visibilityBound = true;
+  }
+}
+async function createGist() {
+  const tokEl = document.getElementById('sync-token');
+  if (tokEl) syncConfig.token = tokEl.value.trim();
+  if (!syncConfig.token) { toast('请先填写 GitHub Token','error'); return; }
+  try {
+    const res = await fetch('https://api.github.com/gists', {
+      method:'POST',
+      headers:{'Authorization':`Bearer ${syncConfig.token}`,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
+      body: JSON.stringify({ description:'Spanish Etymology Map (auto-synced)', public:false, files:{ [GIST_FILE]:{ content: JSON.stringify(buildPayload()) } } }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    syncConfig.gistId = data.id;
+    const gidEl = document.getElementById('sync-gistid'); if (gidEl) gidEl.value = data.id;
+    saveSyncConfig();
+    _lastPushedSig = payloadSig(buildPayload());
+    toast('已创建私有 Gist：'+data.id,'success');
+    updateSyncStatusUI(); startCloudSync();
+  } catch(e) { toast('创建失败：'+e.message+'（确认 token 勾选 gist 权限）','error'); }
+}
+async function syncNow() {
+  if (!syncReady()) { toast('请先填写 Token 和 Gist ID','error'); return; }
+  toast('同步中…');
+  await pullFromGist(true);
+  await pushToGist(true);
+}
+function fmtTime(ts) { if (!ts) return '—'; const d=new Date(ts); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); }
+function updateSyncStatusUI() {
+  const el = document.getElementById('sync-status-row');
+  if (!el) return;
+  if (!syncReady()) { el.textContent = '未配置'; return; }
+  const parts = [];
+  if (syncStatus.busy) parts.push('同步中…');
+  if (syncStatus.lastError) parts.push('⚠ '+syncStatus.lastError);
+  parts.push(`↑ ${fmtTime(syncStatus.lastPushAt)}`); parts.push(`↓ ${fmtTime(syncStatus.lastPullAt)}`);
+  el.textContent = parts.join(' · ');
+}
+function openSyncModal() {
+  document.getElementById('sync-token').value = syncConfig.token || '';
+  document.getElementById('sync-gistid').value = syncConfig.gistId || '';
+  document.getElementById('sync-auto').checked = syncConfig.autoSync !== false;
+  document.getElementById('sync-modal').classList.remove('hidden');
+  updateSyncStatusUI();
+}
+function closeSyncModal() { document.getElementById('sync-modal').classList.add('hidden'); }
+function saveSyncSettings() {
+  syncConfig.token = document.getElementById('sync-token').value.trim();
+  syncConfig.gistId = document.getElementById('sync-gistid').value.trim();
+  syncConfig.autoSync = document.getElementById('sync-auto').checked;
+  saveSyncConfig(); closeSyncModal();
+  toast(syncReady()?'同步设置已保存':'已保存（还需 Token + Gist ID）','success');
+  startCloudSync();
+}
+
+// =========================================================================
+// LLM 配置（双槽 + provider 缓存）
+// =========================================================================
+const PROVIDER_PRESETS = {
+  glm_anthropic: { endpoint:'https://open.bigmodel.cn/api/anthropic/v1/messages', model:'GLM-4.5-air', protocol:'anthropic' },
+  glm: { endpoint:'https://open.bigmodel.cn/api/paas/v4/chat/completions', model:'glm-4-flash', protocol:'openai' },
+  deepseek: { endpoint:'https://api.deepseek.com/v1/chat/completions', model:'deepseek-chat', protocol:'openai' },
+  moonshot: { endpoint:'https://api.moonshot.cn/v1/chat/completions', model:'moonshot-v1-8k', protocol:'openai' },
+  openai: { endpoint:'https://api.openai.com/v1/chat/completions', model:'gpt-4o-mini', protocol:'openai' },
+  anthropic: { endpoint:'https://api.anthropic.com/v1/messages', model:'claude-sonnet-4-6', protocol:'anthropic' },
+  custom: { endpoint:'', model:'', protocol:'openai' },
+};
+function _defaultLLMSlot() { return { provider:'glm_anthropic', endpoint:PROVIDER_PRESETS.glm_anthropic.endpoint, model:PROVIDER_PRESETS.glm_anthropic.model, apiKey:'', useProxy:false }; }
+let llmSettings = { primary:_defaultLLMSlot(), completion:{..._defaultLLMSlot(), reusePrimary:true}, providerCache:{} };
+let activeLLMTab = 'primary';
+function getLLMSlot(slotName) {
+  const s = llmSettings[slotName];
+  if (!s) return llmSettings.primary;
+  if (slotName === 'completion' && s.reusePrimary) return llmSettings.primary;
+  return s;
+}
+function _saveToProviderCache(p, v) { if (p) llmSettings.providerCache[p] = v; }
+function _loadFromProviderCache(p) { const c = llmSettings.providerCache[p]; const pre = PROVIDER_PRESETS[p]||{}; return { endpoint:c?.endpoint||pre.endpoint||'', model:c?.model||pre.model||'', apiKey:c?.apiKey||'', useProxy:c?.useProxy||false }; }
+function loadSettings() {
+  try {
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    if (!raw) return;
+    const saved = JSON.parse(raw);
+    if (saved && saved.primary) {
+      for (const k of ['primary','completion']) llmSettings[k] = { ...llmSettings[k], ...(saved[k]||{}) };
+      if (saved.providerCache) llmSettings.providerCache = saved.providerCache;
+    }
+  } catch(e){ console.error(e); }
+}
+function saveSettingsToStorage() { localStorage.setItem(SETTINGS_KEY, JSON.stringify(llmSettings)); }
+function _loadSlotToForm(slotName) {
+  const s = getLLMSlot(slotName);
+  document.getElementById('set-provider').value = s.provider;
+  document.getElementById('set-endpoint').value = s.endpoint;
+  document.getElementById('set-model').value = s.model;
+  document.getElementById('set-apikey').value = s.apiKey;
+  document.getElementById('set-use-proxy').checked = !!s.useProxy;
+  const r = document.getElementById('set-reuse-primary'); if (r) r.checked = !!llmSettings[slotName].reusePrimary;
+}
+function _syncFormToSlot(slotName) {
+  const s = llmSettings[slotName];
+  s.provider = document.getElementById('set-provider').value;
+  s.endpoint = document.getElementById('set-endpoint').value.trim();
+  s.model = document.getElementById('set-model').value.trim();
+  s.apiKey = document.getElementById('set-apikey').value.trim();
+  s.useProxy = document.getElementById('set-use-proxy').checked;
+  const r = document.getElementById('set-reuse-primary'); if (r) s.reusePrimary = r.checked;
+}
+function openSettingsModal() { _loadSlotToForm(activeLLMTab); _paintLLMTabs(); document.getElementById('settings-modal').classList.remove('hidden'); }
+function closeSettingsModal() { document.getElementById('settings-modal').classList.add('hidden'); }
+function _paintLLMTabs() {
+  const p = document.getElementById('tab-btn-primary'), c = document.getElementById('tab-btn-completion');
+  const reuseRow = document.getElementById('reuse-primary-row'), hint = document.getElementById('tab-hint');
+  if (activeLLMTab === 'primary') {
+    p.className = 'flex-1 px-3 py-1.5 text-xs rounded-md font-semibold transition bg-[#38bdf8] text-slate-900';
+    c.className = 'flex-1 px-3 py-1.5 text-xs rounded-md font-semibold transition bg-white/5 text-slate-300 hover:bg-white/10';
+    if (reuseRow) reuseRow.classList.add('hidden');
+    if (hint) hint.textContent = '主 LLM 用于「AI 新词条」（要求强模型）';
+  } else {
+    c.className = 'flex-1 px-3 py-1.5 text-xs rounded-md font-semibold transition bg-[#38bdf8] text-slate-900';
+    p.className = 'flex-1 px-3 py-1.5 text-xs rounded-md font-semibold transition bg-white/5 text-slate-300 hover:bg-white/10';
+    if (reuseRow) reuseRow.classList.remove('hidden');
+    if (hint) hint.textContent = '补全 LLM 用于批量字段填充（可用便宜快速模型）';
+  }
+  _syncReuseUi();
+}
+function _syncReuseUi() {
+  if (activeLLMTab !== 'completion') return;
+  const r = document.getElementById('set-reuse-primary'); if (!r) return;
+  if (r.checked) {
+    const p = getLLMSlot('primary');
+    document.getElementById('set-provider').value = p.provider;
+    document.getElementById('set-endpoint').value = p.endpoint;
+    document.getElementById('set-model').value = p.model;
+    document.getElementById('set-apikey').value = p.apiKey;
+    document.getElementById('set-use-proxy').checked = !!p.useProxy;
+  }
+  ['set-provider','set-endpoint','set-model','set-apikey','set-use-proxy'].forEach(id => { const el = document.getElementById(id); if (el) el.disabled = r.checked; });
+}
+function onReuseToggle() { _syncReuseUi(); }
+function switchLLMTab(tab) { _syncFormToSlot(activeLLMTab); activeLLMTab = tab; _loadSlotToForm(activeLLMTab); _paintLLMTabs(); }
+function onProviderChange() {
+  const newP = document.getElementById('set-provider').value;
+  const oldP = llmSettings[activeLLMTab].provider;
+  _saveToProviderCache(oldP, { endpoint:document.getElementById('set-endpoint').value.trim(), model:document.getElementById('set-model').value.trim(), apiKey:document.getElementById('set-apikey').value.trim(), useProxy:document.getElementById('set-use-proxy').checked });
+  const loaded = _loadFromProviderCache(newP);
+  document.getElementById('set-endpoint').value = loaded.endpoint;
+  document.getElementById('set-model').value = loaded.model;
+  document.getElementById('set-apikey').value = loaded.apiKey;
+  document.getElementById('set-use-proxy').checked = !!loaded.useProxy;
+  llmSettings[activeLLMTab].provider = newP;
+  llmSettings[activeLLMTab].endpoint = loaded.endpoint;
+  llmSettings[activeLLMTab].model = loaded.model;
+}
+function toggleKeyVisibility() { const i = document.getElementById('set-apikey'), b = document.getElementById('key-vis-btn'); if (i.type==='password'){i.type='text';b.textContent='隐藏';}else{i.type='password';b.textContent='显示';} }
+function saveSettings() { _syncFormToSlot(activeLLMTab); _saveToProviderCache(getLLMSlot(activeLLMTab).provider, getLLMSlot(activeLLMTab)); saveSettingsToStorage(); closeSettingsModal(); toast('LLM 设置已保存','success'); updateAIButton(); }
+async function callLLM(settings, prompt, maxTokens=4096) {
+  const proto = PROVIDER_PRESETS[settings.provider]?.protocol || 'openai';
+  const base = settings.useProxy ? `http://localhost:8787/${settings.endpoint.replace(/^https?:\/\//,'')}` : settings.endpoint;
+  if (proto === 'anthropic') {
+    const res = await fetch(base, { method:'POST', headers:{'Content-Type':'application/json','x-api-key':settings.apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'}, body: JSON.stringify({ model:settings.model, max_tokens:maxTokens, messages:[{role:'user',content:prompt}] }) });
+    if (!res.ok) throw new Error(`HTTP ${res.status} ${await res.text()}`);
+    const data = await res.json();
+    return data.content?.[0]?.text || '';
+  }
+  const res = await fetch(base, { method:'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${settings.apiKey}`}, body: JSON.stringify({ model:settings.model, messages:[{role:'user',content:prompt}], max_tokens:maxTokens, temperature:0.7 }) });
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${await res.text()}`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content || '';
+}
+async function testLLM() {
+  const s = getLLMSlot(activeLLMTab);
+  const tempSettings = { ...s, provider:document.getElementById('set-provider').value, endpoint:document.getElementById('set-endpoint').value.trim(), model:document.getElementById('set-model').value.trim(), apiKey:document.getElementById('set-apikey').value.trim() };
+  if (!tempSettings.apiKey) { toast('请先填写 API Key','error'); return; }
+  toast('测试中…');
+  try { const r = await callLLM(tempSettings, 'Responde solo \"OK\"', 16); toast('✓ 连接成功：'+r.slice(0,30),'success'); }
+  catch(e){ toast('✗ 连接失败：'+e.message+'（试试勾选本地代理）','error'); }
+}
+function updateAIButton() { const b = document.getElementById('ai-btn'); if (b) b.style.opacity = getLLMSlot('completion').apiKey ? '1' : '0.5'; }
+
+// =========================================================================
+// 字母/词根工具
+// =========================================================================
+function getLetter(word) { return word ? word.charAt(0).toUpperCase() : '?'; }
+function getRootKey(entry) { return entry.root || (entry.word ? entry.word.slice(0,3) : ''); }
+function escapeHtml(s) { return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function getEntriesForRoot(root) {
+  return state.entries.filter(e => getRootKey(e) === root).sort((a,b) => (a.word||'').localeCompare(b.word||'','es'));
+}
+function getRootsForLetter(letter) {
+  const m = new Map();
+  state.entries.forEach(e => {
+    if (getLetter(e.word) !== letter) return;
+    const r = getRootKey(e); if (!m.has(r)) m.set(r,0);
+    m.set(r, m.get(r)+1);
+  });
+  return [...m.entries()].sort((a,b) => a[0].localeCompare(b[0],'es'));
+}
+
+// =========================================================================
+// 标签图（20 大类参考体系 — 西班牙语学习语境）
+// =========================================================================
+const TAG_TAXONOMY_ROOTS = [
+  '饮食·食物·烹饪','身体·健康·医疗','情感·心理·性格','人物·人际·家庭',
+  '日常生活·起居','服饰·外观','居住·建筑·家具','交通·出行·地点',
+  '时间·季节·历法','自然·天文·地理·生物','教育·学习·知识','工作·经济·商业',
+  '科学·技术·方法','文化·艺术·娱乐','政治·法律·社会','历史·宗教·哲学·传统',
+  '语言·文字·思维','抽象概念·数量·关系','动作·行为·过程','状态·性质·变化',
+];
+const _TAG_SUB_EXAMPLES = {
+  '饮食·食物·烹饪':['甜品','谷物','水果','餐具','烹饪方式','调味'],
+  '身体·健康·医疗':['头部','四肢','疾病','药物','生理','感官'],
+  '情感·心理·性格':['喜悦','愤怒','悲伤','恐惧','爱','厌恶'],
+  '人物·人际·家庭':['亲属','职业','朋友','称谓','社会角色'],
+  '日常生活·起居':['睡眠','清洁','家务','休闲','作息'],
+  '服饰·外观':['衣物','饰品','美容','颜色','材质'],
+  '居住·建筑·家具':['房屋','房间','家具','建材'],
+  '交通·出行·地点':['陆路','水路','航空','地点','方向','旅行'],
+  '时间·季节·历法':['时刻','日期','季节','节日','周期'],
+  '自然·天文·地理·生物':['气象','天文','地形','植物','动物','物质'],
+  '教育·学习·知识':['学校','课程','学科','知识','考试'],
+  '工作·经济·商业':['职业','公司','金钱','市场','产业'],
+  '科学·技术·方法':['物理','化学','计算','方法','工程'],
+  '文化·艺术·娱乐':['音乐','美术','文学','舞蹈','游戏','媒体'],
+  '政治·法律·社会':['政府','法律','权利','犯罪','制度'],
+  '历史·宗教·哲学·传统':['历史','宗教','哲学','传统','仪式'],
+  '语言·文字·思维':['语音','词汇','语法','翻译','思维'],
+  '抽象概念·数量·关系':['数量','程度','因果','比较','顺序'],
+  '动作·行为·过程':['移动','抓取','建造','说','给','打','破坏'],
+  '状态·性质·变化':['颜色','形状','大小','强度','变化'],
+};
+function _tagTaxonomyText() { return Object.entries(_TAG_SUB_EXAMPLES).map(([r,s],i)=>`   ${i+1}. ${r}：${s.slice(0,4).join('/')}`).join('\n'); }
+function _routeTagToRoot(tag) {
+  if (!tag) return null;
+  const t = tag.toLowerCase();
+  const R = [
+    [/食|吃|喝|煮|烹饪|味|饭|菜|茶|酒|食材|甜品|冰淇淋/, '饮食·食物·烹饪'],
+    [/身|体|医|病|痛|头|手|脚|眼|健康|药|症|生理/, '身体·健康·医疗'],
+    [/情|感|怒|喜|悲|爱|恨|心|性格|情绪/, '情感·心理·性格'],
+    [/人|亲|家|友|妻|夫|父|母|子|女|哥|姐|称谓|职业|关系/, '人物·人际·家庭'],
+    [/生活|睡|清洁|家务|休闲|日常|作息/, '日常生活·起居'],
+    [/衣|服|穿|妆|美容|外观|饰|鞋/, '服饰·外观'],
+    [/住|屋|房|建|家具|门|窗|墙/, '居住·建筑·家具'],
+    [/行|走|车|船|飞|路|街|地点|旅行|交通|方向/, '交通·出行·地点'],
+    [/时|日|月|年|春|夏|秋|冬|季节|历|期/, '时间·季节·历法'],
+    [/天|雨|风|星|山|河|海|地|自然|生物|气象|植物|动物|光|火|水/, '自然·天文·地理·生物'],
+    [/学|教|读|知识|课|考|教育|学校|书/, '教育·学习·知识'],
+    [/工作|职|业|钱|买|卖|商|经|贸易|公司/, '工作·经济·商业'],
+    [/科学|技|理|化|物|数|方法|术|工程/, '科学·技术·方法'],
+    [/文|艺|音|画|舞|戏|电影|娱乐|媒体|报/, '文化·艺术·娱乐'],
+    [/政|治|法|律|权|国|社|会|罪|罚|选举/, '政治·法律·社会'],
+    [/史|宗|神|佛|哲|传统|古|仪式/, '历史·宗教·哲学·传统'],
+    [/语|言|字|词|说|读|写|想|思维|逻辑|语法|音/, '语言·文字·思维'],
+    [/数|量|程|度|真|假|对|错|关系|比较|抽象|概念/, '抽象概念·数量·关系'],
+    [/动|作|为|行|做|打|破坏|碰撞|抓|扔|切|拿|放|送|接/, '动作·行为·过程'],
+    [/状态|性质|变|化|好|坏|大|小|颜色|形状|快|慢|高|低/, '状态·性质·变化'],
+  ];
+  for (const [re, root] of R) if (re.test(t)) return root;
+  return null;
+}
+function _ingestTag(rawTag) {
+  if (!rawTag) return null;
+  const parts = String(rawTag).split(/>|›/).map(s => s.trim()).filter(Boolean);
+  if (parts.length === 0) return null;
+  const g = state.tagGraph || (state.tagGraph = {});
+  if (parts.length >= 2) {
+    const root = parts[0];
+    if (!g[root]) g[root] = { parent:null, aliases:[], related:[] };
+    let parent = root;
+    for (let i = 1; i < parts.length; i++) {
+      const n = parts[i];
+      if (!g[n]) g[n] = { parent, aliases:[], related:[] };
+      else if (!g[n].parent) g[n].parent = parent;
+      parent = n;
+    }
+    state.tagGraphUpdatedAt = Date.now();
+    return parts[parts.length-1];
+  }
+  const leaf = parts[0];
+  const root = _routeTagToRoot(leaf);
+  if (root) {
+    if (!g[root]) g[root] = { parent:null, aliases:[], related:[] };
+    if (!g[leaf]) g[leaf] = { parent:root, aliases:[], related:[] };
+    else if (!g[leaf].parent) g[leaf].parent = root;
+    state.tagGraphUpdatedAt = Date.now();
+  }
+  return leaf;
+}
+function getAllTags() { const s = new Set(); state.entries.forEach(e => (e.tags||[]).forEach(t => s.add(t))); Object.keys(state.tagGraph||{}).forEach(t => s.add(t)); return [...s].sort(); }
+function resolveTag(t) { return t; }
+function getTagChain(tag) {
+  const chain = [tag]; const seen = new Set([tag]); let cur = tag; let guard = 0;
+  while (cur && state.tagGraph[cur] && state.tagGraph[cur].parent && !seen.has(state.tagGraph[cur].parent) && guard++ < 20) { cur = state.tagGraph[cur].parent; seen.add(cur); chain.unshift(cur); }
+  return chain;
+}
+function getTagWords(tag) { return state.entries.filter(e => (e.tags||[]).includes(tag)); }
+function getTagSubtree(tag) { const r = [tag]; const q = [tag]; while (q.length) { const c = q.shift(); Object.entries(state.tagGraph||{}).forEach(([k,v]) => { if (v.parent === c && !r.includes(k)) { r.push(k); q.push(k); } }); } return r; }
+function getTagWordsCumulative(tag) { const sub = new Set(getTagSubtree(tag)); return state.entries.filter(e => (e.tags||[]).some(t => sub.has(t))); }
+function getTagChildren(tag) { return Object.entries(state.tagGraph||{}).filter(([_,v]) => v.parent === tag).map(([k]) => k); }
+function getRootTags() { const all = getAllTags(); return all.filter(t => !state.tagGraph[t] || !state.tagGraph[t].parent); }
+function getTagCount(tag) { return getTagWordsCumulative(tag).length; }
+
+// =========================================================================
+// 工具：emoji 检测 + toast
+// =========================================================================
+function _startsWithEmoji(s) { if (!s) return false; const t = s.trim(); if (!t) return false; try { if (/^\p{Extended_Pictographic}/u.test(t)) return true; } catch(e){} return /^[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{1F1E6}-\u{1F1FF}\u{FE0F}]/u.test(t); }
+function toast(msg, type='info') {
+  const colors = { success:'bg-[#34d399]/20 border-[#34d399]/40 text-[#6ee7b7]', error:'bg-[#f43f5e]/20 border-[#f43f5e]/40 text-[#fda4af]', info:'bg-[#38bdf8]/20 border-[#38bdf8]/40 text-[#7dd3fc]' };
+  const el = document.createElement('div');
+  el.className = `toast glass px-4 py-2 rounded-lg border text-sm ${colors[type]}`;
+  el.textContent = msg;
+  document.getElementById('toast-container').appendChild(el);
+  setTimeout(() => { el.style.transition='all 0.3s'; el.style.opacity='0'; el.style.transform='translateX(100%)'; setTimeout(()=>el.remove(),300); }, 3000);
+}
+function emptyHint(title, sub='') { return `<div class="empty-hint"><div class="text-base mb-1">${escapeHtml(title)}</div><div class="text-xs">${escapeHtml(sub)}</div></div>`; }
+
+// save() 钩到 cloud sync
+const _origSave = save;
+save = function() { _origSave(); scheduleCloudSync(); };
+
+// =========================================================================
+// RENDER · 字母导图
+// =========================================================================
+let _atlasCollapsed = false;
+function toggleLetterAtlas() { _atlasCollapsed = !_atlasCollapsed; document.getElementById('letter-grid').classList.toggle('hidden', _atlasCollapsed); document.getElementById('atlas-arrow').textContent = _atlasCollapsed ? '▸' : '▾'; }
+
+function renderLetterGrid() {
+  const grid = document.getElementById('letter-grid');
+  const counts = {}; state.entries.forEach(e => { const l = getLetter(e.word); counts[l] = (counts[l]||0)+1; });
+  const groupChip = (label, color, btns) => `<div class="flex items-center gap-1.5 rounded-lg pl-1.5 pr-2 py-1 border max-w-full flex-wrap" style="background:${color}14;border-color:${color}33"><span class="text-[11px] font-bold px-1 rounded shrink-0 self-start mt-0.5" style="color:${color};background:${color}1f">${escapeHtml(label)}</span><div class="flex items-center gap-1 flex-wrap min-w-0">${btns}</div></div>`;
+  const btn = (L) => {
+    const cnt = counts[L.c]||0;
+    const active = state.filter.letter === L.c ? 'active' : '';
+    const has = cnt > 0;
+    return `<button class="letter-btn ${active} px-2 py-1 rounded border ${has?'border-white/15':'border-white/5'} flex items-baseline gap-1" style="${has?'':'opacity:0.4'}" onclick="selectLetter('${L.c}')" title="${escapeHtml(L.proto)} · ${escapeHtml(L.action)}">
+      <span class="text-base font-bold ${has?'text-white':'text-slate-500'}">${L.c}</span>
+      <span class="text-[10px] ${has?'text-[#34d399]':'text-slate-600'} font-mono">${cnt}</span>
+    </button>`;
+  };
+  let html = '<div class="flex flex-wrap items-center gap-2">';
+  LETTER_GROUPS_ORDER.forEach(g => {
+    const color = { 'Vocales':'#a78bfa','Bilabiales':'#fbbf24','Dentales':'#34d399','Velares':'#38bdf8','Palatales':'#f43f5e','Fricativas':'#fb923c','Líquidas':'#a855f7','Raras':'#64748b' }[g] || '#94a3b8';
+    const btns = LETTERS.filter(L => L.group === g).map(btn).join('');
+    html += groupChip(g, color, btns);
+  });
+  html += '</div>';
+  grid.innerHTML = html;
+}
+
+// =========================================================================
+// RENDER · 词根列表
+// =========================================================================
+function renderRootsList() {
+  const container = document.getElementById('roots-list');
+  const titleEl = document.getElementById('roots-title');
+  const countEl = document.getElementById('roots-count');
+  const backBtn = document.getElementById('back-to-all-btn');
+  if (state.filter.search.trim()) {
+    const matches = getFilteredBySearch() || [];
+    titleEl.textContent = '搜索结果'; countEl.textContent = `${matches.length} 条`;
+    if (backBtn) backBtn.style.display = 'none';
+    if (!matches.length) { container.innerHTML = emptyHint('未找到匹配词条','尝试更换关键词'); return; }
+    const rootMap = new Map();
+    matches.forEach(e => { const r = getRootKey(e); if (!rootMap.has(r)) rootMap.set(r,{c:0,l:getLetter(e.word)}); rootMap.get(r).c++; });
+    const grouped = {}; rootMap.forEach((info,r) => { (grouped[info.l] = grouped[info.l]||[]).push({root:r,count:info.c}); });
+    let html = '';
+    Object.keys(grouped).sort().forEach(L => {
+      html += `<div class="text-[10px] text-slate-500 px-2 py-1 rounded bg-white/[0.02] mb-0.5">${L} · ${grouped[L].length} 词根</div>`;
+      grouped[L].forEach(({root,count}) => { html += rootItemHtml(root,count,state.highlightRoot===root); });
+    });
+    container.innerHTML = html; return;
+  }
+  if (state.filter.letter === null) {
+    if (backBtn) backBtn.style.display = 'none';
+    const all = new Map();
+    state.entries.forEach(e => { const r = getRootKey(e); if (!all.has(r)) all.set(r,{c:0,l:getLetter(e.word)}); all.get(r).c++; });
+    const grouped = {}; all.forEach((info,r) => { (grouped[info.l] = grouped[info.l]||[]).push({root:r,count:info.c}); });
+    let html = '';
+    Object.keys(grouped).sort().forEach(L => {
+      html += `<div class="text-[10px] text-slate-500 px-2 py-1 rounded bg-white/[0.02] mb-0.5 cursor-pointer" onclick="selectLetter('${L}')">${L} · ${grouped[L].length} 词根</div>`;
+      grouped[L].forEach(({root,count}) => { html += rootItemHtml(root,count,state.highlightRoot===root); });
+    });
+    titleEl.textContent = '全部词根'; countEl.textContent = `${all.size} 个`;
+    container.innerHTML = html || emptyHint('暂无词条','点击右上角 AI 新词条'); return;
+  }
+  if (backBtn) backBtn.style.display = '';
+  const roots = getRootsForLetter(state.filter.letter);
+  titleEl.innerHTML = `<span class="text-[#38bdf8] text-lg font-bold">${state.filter.letter}</span> 下词根`;
+  countEl.textContent = `${roots.length} 词根 · ${state.entries.filter(e=>getLetter(e.word)===state.filter.letter).length} 词条`;
+  container.innerHTML = roots.length ? roots.map(([r,c]) => rootItemHtml(r,c,state.highlightRoot===r)).join('') : emptyHint(`${state.filter.letter} 暂无词条`,'');
+}
+function rootItemHtml(root, count, isActive) {
+  const safe = escapeHtml(root).replace(/'/g,"\\'");
+  return `<div class="root-item ${isActive?'active':''} px-3 py-2 rounded-lg" onclick="selectRoot('${safe}')" ondblclick="dblClickRoot('${safe}')">
+    <div class="flex items-baseline justify-between gap-2">
+      <span class="text-base font-bold text-white">${escapeHtml(root)}</span>
+      <span class="text-[10px] text-slate-500">${count}</span>
+    </div>
+  </div>`;
+}
+
+// =========================================================================
+// RENDER · 词条列表
+// =========================================================================
+function renderWordsList() {
+  const container = document.getElementById('words-list');
+  const titleEl = document.getElementById('words-title');
+  const countEl = document.getElementById('words-count');
+  const tagPills = (e) => (e.tags||[]).slice(0,3).map(t => { const ch = getTagChain(t)||[t]; return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="event.stopPropagation();onTagClick('${escapeHtml(c).replace(/'/g,"\\'")}',event)">${escapeHtml(c)}</span>`).join('<span style="color:var(--border);margin:0 2px">›</span>'); }).join(' ');
+  const badges = (e) => [e.pos?`<span class="text-[9px] px-1 rounded bg-[#a855f7]/15 text-[#d8b4fe]">${escapeHtml(e.pos)}</span>`:'', (e.gender&&e.pos!=='verbo')?`<span class="text-[9px] px-1 rounded bg-[#f43f5e]/15 text-[#fda4af]">${escapeHtml(e.gender)}</span>`:''].filter(Boolean).join(' ');
+  const cardHtml = (e) => {
+    const active = state.selectedEntryId === e.id ? 'active' : '';
+    return `<div class="word-item ${active} px-3 py-2 rounded-lg border border-white/5 fade-in" onclick="selectEntry('${e.id}')" ondblclick="dblClickEntry('${e.id}')">
+      <div class="flex items-baseline justify-between mb-1 gap-2">
+        <div class="flex items-baseline gap-2 min-w-0">
+          <span class="text-base font-bold text-white">${escapeHtml(e.word)}</span>
+          ${badges(e)}
+        </div>
+        <button onclick="event.stopPropagation();speak('${escapeHtml(e.word)}')" class="text-[#6ee7b7] text-xs" title="朗读">▶</button>
+      </div>
+      <div class="text-[11px] text-slate-300">· ${escapeHtml((e.meaning||'').trim())}</div>
+    </div>`;
+  };
+  if (state.filter.search.trim()) {
+    const m = getFilteredBySearch()||[];
+    titleEl.textContent = `🔍 "${state.filter.search}"`; if (countEl) countEl.textContent = `${m.length} 条`;
+    container.innerHTML = m.length ? m.map(cardHtml).join('') : emptyHint('未找到匹配词条','尝试更换关键词'); return;
+  }
+  if (tagCloudState.selectedTag) {
+    const w = getTagWordsCumulative(tagCloudState.selectedTag);
+    titleEl.innerHTML = `🏷 ${escapeHtml(tagCloudState.selectedTag)}`; if (countEl) countEl.textContent = `${w.length} 条`;
+    container.innerHTML = w.length ? w.map(cardHtml).join('') : emptyHint('该标签下暂无词条',''); return;
+  }
+  if (state.filter.letter === null) {
+    const all = state.entries.slice().sort((a,b)=>(a.word||'').localeCompare(b.word||'','es'));
+    titleEl.textContent = '全部词条'; if (countEl) countEl.textContent = `${all.length} 条`;
+    container.innerHTML = all.length ? all.map(cardHtml).join('') : emptyHint('暂无词条','点击 ✨ AI 新词条'); return;
+  }
+  const entries = state.entries.filter(e => getLetter(e.word) === state.filter.letter).sort((a,b)=>(a.word||'').localeCompare(b.word||'','es'));
+  titleEl.innerHTML = `<span class="text-[#38bdf8]">${state.filter.letter}</span> 下词条`; if (countEl) countEl.textContent = `${entries.length} 条`;
+  if (state.highlightRoot) titleEl.innerHTML = `<span class="text-[#f43f5e]">${escapeHtml(state.highlightRoot)}</span> 下词条`;
+  container.innerHTML = entries.length ? entries.map(cardHtml).join('') : emptyHint('暂无词条','');
+}
+
+// =========================================================================
+// RENDER · 详情面板
+// =========================================================================
+function renderDetail() {
+  const panel = document.getElementById('detail-panel');
+  if (!state.selectedEntryId) { panel.innerHTML = emptyHint('← 选择一个词条','查看词根拆解、拉丁语源、词族与同源词'); return; }
+  const e = state.entries.find(x => x.id === state.selectedEntryId);
+  if (!e) { panel.innerHTML = emptyHint('词条不存在',''); return; }
+  const tagPills = (e.tags||[]).map(t => { const ch = getTagChain(t)||[t]; const tip = ch.join(' › '); return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="goToTag('${escapeHtml(c).replace(/'/g,"\\'")}',event)" title="${escapeHtml(tip)}">${escapeHtml(c)}</span>`).join('<span style="color:var(--border);margin:0 2px">›</span>'); }).join(' ');
+  // 形态拆解可视化
+  const morphHtml = e.breakdown ? `<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">形态拆解 Morfología</div><div class="leading-loose">${renderMorphology(e.breakdown)}</div></div>` : '';
+  const cognateHtml = (e.cognates && e.cognates.length) ? e.cognates.map(c => `<span class="text-[11px] px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">${escapeHtml(c.lang)}: <span class="text-[#7dd3fc] italic">${escapeHtml(c.word)}</span></span>`).join(' ') : '';
+  panel.innerHTML = `
+    <div class="fade-in">
+      <div class="mb-3">
+        <div class="flex items-baseline gap-2 flex-wrap">
+          <h2 class="text-[28px] font-bold text-white">${escapeHtml(e.word)}</h2>
+          ${e.gender&&e.pos!=='verbo'?`<span class="text-[12px] text-slate-400">[${escapeHtml(e.gender)}]</span>`:''}
+          <button onclick="speak('${escapeHtml(e.word)}')" class="text-[#6ee7b7] text-sm" title="朗读">▶</button>
+          ${e.pos?`<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#a855f7]/15 text-[#d8b4fe] border border-[#a855f7]/30">${escapeHtml(e.pos)}</span>`:''}
+          ${e.frequency?`<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#34d399]/15 text-[#6ee7b7] border border-[#34d399]/30">${escapeHtml(e.frequency)}</span>`:''}
+          <div class="flex gap-1 ml-auto shrink-0">
+            <button onclick="openAIModal('${e.id}')" class="px-2 py-1 text-[10px] rounded-md bg-gradient-to-r from-[#a855f7]/20 to-[#ec4899]/20 border border-[#a855f7]/40 text-[#d8b4fe]" title="只补全这一个词条">✨ AI补全</button>
+            <button onclick="editEntry('${e.id}')" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300">✎ 编辑</button>
+            <button onclick="deleteEntry('${e.id}')" class="px-2 py-1 text-[10px] rounded-md bg-[#f43f5e]/10 border border-[#f43f5e]/30 text-[#fda4af]">✕ 删除</button>
+          </div>
+        </div>
+        <div class="flex items-center gap-1.5 mt-1.5 text-[11px] text-slate-500 flex-wrap">
+          <span>词根 <span class="text-[#f43f5e] font-bold">${escapeHtml(getRootKey(e))}</span></span>
+          ${e.rootMeaning?`<span>· ${escapeHtml(e.rootMeaning)}</span>`:''}
+          ${e.latinOrigin?`<span>· 拉丁 <span class="text-[#fbbf24] italic">${escapeHtml(e.latinOrigin)}</span></span>`:''}
+          ${e.etymologyTier?`<span class="px-1.5 py-0.5 rounded-full bg-[#38bdf8]/10 text-[#7dd3fc] border border-[#38bdf8]/20">${escapeHtml(e.etymologyTier)}</span>`:''}
+        </div>
+      </div>
+      <div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">释义 Significado</div><div class="text-[13px] text-[#fde68a] leading-relaxed">${escapeHtml((e.meaning||'').trim())||'<span class="text-slate-500 text-[12px] italic">（无）</span>'}</div></div>
+      ${morphHtml}
+      ${e.analysis?`<div class="mb-4"><div class="text-[10px] text-[#d8b4fe] uppercase tracking-wider mb-1">🎯 词根语义分析</div><div class="text-[13px] text-slate-100 leading-relaxed bg-gradient-to-br from-[#a855f7]/10 to-[#ec4899]/5 px-3 py-2 rounded-lg border border-[#a855f7]/20 whitespace-pre-wrap">${escapeHtml(e.analysis)}</div></div>`:''}
+      ${e.etymology?`<div class="mb-4"><div class="text-[10px] text-[#fbbf24] uppercase tracking-wider mb-1">📜 词源追溯 Etimología</div><div class="text-[13px] text-slate-200 leading-relaxed bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15 whitespace-pre-wrap">${escapeHtml(e.etymology)}</div></div>`:''}
+      ${(e.englishCognate||cognateHtml)?`<div class="mb-4"><div class="text-[10px] text-[#7dd3fc] uppercase tracking-wider mb-1">🌐 跨语言同源 Cognados</div><div class="flex flex-wrap gap-1.5 items-center">${e.englishCognate?`<span class="text-[11px] px-2 py-0.5 rounded bg-[#38bdf8]/10 border border-[#38bdf8]/30 text-[#7dd3fc]">英语: <span class="italic">${escapeHtml(e.englishCognate)}</span></span>`:''}${cognateHtml}</div></div>`:''}
+      ${(e.examples||[]).length?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">💬 例句 Ejemplos</div><div class="space-y-1">${e.examples.map(ex=>`<div class="text-[13px] pl-2 border-l-2 border-[#34d399]/40"><span class="text-slate-100">${escapeHtml(ex)}</span></div>`).join('')}</div></div>`:''}
+      ${(e.related||[]).length?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">🔗 同根词 Familia</div><div class="flex flex-wrap gap-1.5">${e.related.map(r=>`<span class="text-[11px] px-2 py-0.5 rounded bg-[#34d399]/10 text-[#6ee7b7] border border-[#34d399]/30">${escapeHtml(r)}</span>`).join('')}</div></div>`:''}
+      ${tagPills?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">标签 Tags</div><div>${tagPills}</div></div>`:''}
+      ${e.notes?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">📝 笔记</div><div class="text-[13px] text-slate-300 italic bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15">${escapeHtml(e.notes)}</div></div>`:''}
+    </div>`;
+}
+function renderMorphology(breakdown) {
+  const PREFIXES = new Set(['re-','con-','co-','com-','de-','pre-','en-','in-','ex-','dis-','sub-','trans-','a-','ab-','ad-','pro-','sobre-','entre-','des-']);
+  // breakdown 形如 "hel-(寒冷词根) + -ado(过去分词后缀)" → 上色
+  return breakdown.split(/\s*\+\s*/).map(seg => {
+    const m = seg.match(/^([^\s(]+)(\(([^)]*)\))?/);
+    if (!m) return `<span class="morpheme morph-link">${escapeHtml(seg)}</span>`;
+    const morph = m[1]; const gloss = m[3]||'';
+    const cls = morph.startsWith('-') ? 'morph-suffix'
+             : (PREFIXES.has(morph.toLowerCase()) ? 'morph-prefix' : 'morph-root');
+    return `<span class="morpheme ${cls}">${escapeHtml(morph)}</span>${gloss?`<span class="text-[10px] text-slate-500 mx-1">${escapeHtml(gloss)}</span>`:''}`;
+  }).join('<span class="text-slate-600 mx-1">+</span>');
+}
+
+// =========================================================================
+// RENDER · 标签云 + stats + reference
+// =========================================================================
+let _tagCloudCollapsed = true;
+function toggleTagCloudSection() { _tagCloudCollapsed = !_tagCloudCollapsed; document.getElementById('tag-cloud').classList.toggle('hidden', _tagCloudCollapsed); document.getElementById('tag-cloud-arrow').textContent = _tagCloudCollapsed?'▸':'▾'; }
+function renderTagCloud() {
+  const cloud = document.getElementById('tag-cloud'); const detail = document.getElementById('tag-cloud-detail');
+  const tags = getAllTags();
+  if (!tags.length) { cloud.innerHTML = `<span class="text-slate-500 text-sm italic">还没有标签</span>`; detail.classList.add('hidden'); return; }
+  const roots = getRootTags(); const grouped = roots.filter(t => state.tagGraph[t]); const orphan = roots.filter(t => !state.tagGraph[t]);
+  const compact = (root) => { const cnt = getTagWordsCumulative(root).length; const sel = tagCloudState.selectedTag===root; return `<div class="rounded-lg border ${sel?'border-[#34d399]/50 bg-[#34d399]/10':'border-white/10 bg-white/[0.03] hover:border-[#34d399]/40'} px-2.5 py-1.5 cursor-pointer" data-root="${escapeHtml(root)}" onclick="toggleTagCloudRoot('${escapeHtml(root).replace(/'/g,"\\'")}',event)"><div class="flex justify-between mb-0.5"><span class="text-[12px] font-semibold text-white truncate">${escapeHtml(root)}</span><span class="text-[10px] text-slate-500">${cnt}</span></div></div>`; };
+  let html = grouped.map(compact).join('');
+  if (orphan.length) html += `<div class="col-span-2 text-[10px] text-slate-600 mt-2 px-1">未分组 (${orphan.length})</div>` + orphan.map(compact).join('');
+  cloud.innerHTML = html;
+  if (tagCloudState.selectedTag) {
+    const t = tagCloudState.selectedTag; const words = getTagWordsCumulative(t);
+    detail.innerHTML = `<div class="border-t border-white/10 pt-3 fade-in"><div class="text-xs text-slate-400 mb-2">${escapeHtml(t)} · ${words.length} 词条</div><div class="grid grid-cols-2 md:grid-cols-3 gap-1.5">${words.map(e=>`<div onclick="selectEntryAndScroll('${e.id}')" class="cursor-pointer px-2 py-1 rounded bg-white/[0.03] border border-white/5 hover:border-[#34d399]/30"><span class="font-bold text-white text-sm">${escapeHtml(e.word)}</span> <span class="text-xs text-slate-400">${escapeHtml((e.meaning||'').slice(0,15))}</span></div>`).join('')}</div></div>`;
+    detail.classList.remove('hidden');
+  } else detail.classList.add('hidden');
+}
+function toggleTagCloudRoot(root, event) { if (event) event.stopPropagation(); if (tagCloudState.expandedRoot === root) { tagCloudState.expandedRoot = null; tagCloudState.selectedTag = null; } else { tagCloudState.expandedRoot = root; tagCloudState.selectedTag = root; } renderTagCloud(); renderWordsList(); }
+function onTagClick(tag, event) { tagCloudState.selectedTag = tagCloudState.selectedTag===tag?null:tag; renderTagCloud(); renderWordsList(); scrollToActiveItems(); }
+function goToTag(tag, event) { tagCloudState.selectedTag = tagCloudState.selectedTag===tag?null:tag; renderTagCloud(); renderWordsList(); scrollToActiveItems(); }
+function clearTagFilter() { tagCloudState.selectedTag = null; renderTagCloud(); renderWordsList(); scrollToActiveItems(); }
+function updateStats() {
+  document.getElementById('stat-words').textContent = state.entries.length;
+  document.getElementById('stat-roots').textContent = new Set(state.entries.map(e=>getRootKey(e))).size;
+  document.getElementById('stat-letters').textContent = new Set(state.entries.map(e=>getLetter(e.word))).size;
+}
+function renderReference() {}  // 预留
+
+// =========================================================================
+// RENDER 主入口
+// =========================================================================
+function render() { updateStats(); renderLetterGrid(); renderRootsList(); renderWordsList(); renderDetail(); renderTagCloud(); }
+function scrollToActiveItems() { setTimeout(()=>{ const w=document.querySelector('#words-list .word-item.active'); const r=document.querySelector('.root-item.active'); if(w)w.scrollIntoView({block:'nearest',behavior:'smooth'}); if(r)r.scrollIntoView({block:'nearest',behavior:'smooth'}); },50); }
+
+// =========================================================================
+// NAVIGATION
+// =========================================================================
+function selectLetter(L) {
+  state.filter.letter = state.filter.letter === L ? null : L;
+  state.filter.root = null; state.highlightRoot = null; state.selectedEntryId = null;
+  tagCloudState.selectedTag = null;
+  clearSearchSilent();
+  render();
+}
+function selectRoot(root) {
+  state.highlightRoot = state.highlightRoot === root ? null : root;
+  if (state.filter.letter === null) { const e = state.entries.find(x => getRootKey(x)===root); if (e) state.filter.letter = getLetter(e.word); }
+  renderRootsList(); renderWordsList();
+}
+function dblClickRoot(root) {
+  state.highlightRoot = root;
+  const entries = getEntriesForRoot(root);
+  state.selectedEntryId = entries.length ? entries[0].id : null;
+  renderRootsList(); renderWordsList(); renderDetail();
+  if (state.selectedEntryId) setTimeout(()=>{ const el=document.querySelector('#words-list .word-item.active'); if(el)el.scrollIntoView({block:'nearest',behavior:'smooth'}); },50);
+}
+function selectEntry(id) { state.selectedEntryId = id; renderWordsList(); renderDetail(); }
+function dblClickEntry(id) {
+  const e = state.entries.find(x=>x.id===id); if (!e) return;
+  state.selectedEntryId = id;
+  state.filter.letter = getLetter(e.word);
+  state.highlightRoot = getRootKey(e);
+  renderRootsList(); renderWordsList(); renderDetail();
+  setTimeout(()=>{ const a=document.querySelector('.root-item.active'); if(a)a.scrollIntoView({block:'nearest',behavior:'smooth'}); },50);
+}
+function selectEntryAndScroll(id) { const e = state.entries.find(x=>x.id===id); if(!e)return; state.filter.letter = getLetter(e.word); state.highlightRoot = getRootKey(e); state.selectedEntryId = id; render(); setTimeout(()=>{ const d=document.getElementById('detail-panel'); if(d)d.scrollIntoView({behavior:'smooth',block:'center'}); },50); }
+function backToAll() { state.filter.letter = null; state.filter.root = null; if (!state.filter.search) state.highlightRoot = null; renderRootsList(); renderWordsList(); scrollToActiveItems(); const b=document.getElementById('back-to-all-btn'); if(b)b.style.display='none'; }
+
+// =========================================================================
+// SEARCH
+// =========================================================================
+function getFilteredBySearch() {
+  const q = state.filter.search.trim().toLowerCase(); if (!q) return null;
+  return state.entries.filter(e => {
+    const hay = [e.word, e.root, e.latinOrigin, e.meaning, e.breakdown, e.analysis, e.etymology, e.englishCognate, (e.tags||[]).join(' '), (e.related||[]).join(' ')].filter(Boolean).join(' ').toLowerCase();
+    return hay.includes(q);
+  });
+}
+function onSearch(v) {
+  state.filter.search = v;
+  document.getElementById('search-clear').classList.toggle('hidden', !v.trim());
+  if (v.trim()) { const m = getFilteredBySearch(); state.selectedEntryId = (m&&m[0])?m[0].id:null; state.highlightRoot = (m&&m[0])?getRootKey(m[0]):null; state.filter.letter=null; state.filter.root=null; tagCloudState.selectedTag=null; }
+  else { state.selectedEntryId=null; state.highlightRoot=null; }
+  render();
+}
+function clearSearch() { document.getElementById('search-input').value=''; onSearch(''); }
+function clearSearchSilent() { document.getElementById('search-input').value=''; document.getElementById('search-clear').classList.add('hidden'); state.filter.search=''; }
+function clearAllFilters() { document.getElementById('search-input').value=''; state.filter.search=''; document.getElementById('search-clear').classList.add('hidden'); render(); scrollToActiveItems(); }
+
+// =========================================================================
+// ADD / EDIT / DELETE
+// =========================================================================
+function openAddModal(entry=null) {
+  state.editingEntryId = entry?entry.id:null;
+  document.getElementById('add-modal-title').textContent = entry?'编辑词条':'新增词条';
+  document.getElementById('edit-id').value = entry?entry.id:'';
+  document.getElementById('add-word').value = entry?.word||'';
+  document.getElementById('add-pos').value = entry?.pos||'';
+  document.getElementById('add-root').value = entry?.root||'';
+  document.getElementById('add-rootMeaning').value = entry?.rootMeaning||'';
+  document.getElementById('add-latinOrigin').value = entry?.latinOrigin||'';
+  document.getElementById('add-meaning').value = entry?.meaning||'';
+  document.getElementById('add-breakdown').value = entry?.breakdown||'';
+  document.getElementById('add-analysis').value = entry?.analysis||'';
+  document.getElementById('add-etymology').value = entry?.etymology||'';
+  document.getElementById('add-englishCognate').value = entry?.englishCognate||'';
+  document.getElementById('add-etymologyTier').value = entry?.etymologyTier||'';
+  document.getElementById('add-related').value = (entry?.related||[]).join(' ');
+  document.getElementById('add-examples').value = (entry?.examples||[]).join('\n');
+  document.getElementById('add-tags').value = (entry?.tags||[]).join(' ');
+  document.getElementById('add-notes').value = entry?.notes||'';
+  document.getElementById('add-modal').classList.remove('hidden');
+}
+function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
+function editEntry(id) { const e = state.entries.find(x=>x.id===id); if(e) openAddModal(e); }
+function deleteEntry(id) { const e = state.entries.find(x=>x.id===id); if(!e)return; if(!confirm(`删除「${e.word}」？`)) return; state.entries = state.entries.filter(x=>x.id!==id); state.tombstones.push({id, deletedAt:Date.now()}); if(state.selectedEntryId===id) state.selectedEntryId=null; save(); render(); toast(`已删除：${e.word}`,'success'); }
+function saveEntry() {
+  const id = document.getElementById('edit-id').value;
+  const word = document.getElementById('add-word').value.trim();
+  if (!word) { toast('请填写单词','error'); return; }
+  const tags = document.getElementById('add-tags').value.trim().split(/\s+/).filter(Boolean).map(_ingestTag);
+  const entry = {
+    id: id || uid(),
+    word,
+    pos: document.getElementById('add-pos').value,
+    root: document.getElementById('add-root').value.trim(),
+    rootMeaning: document.getElementById('add-rootMeaning').value.trim(),
+    latinOrigin: document.getElementById('add-latinOrigin').value.trim(),
+    meaning: document.getElementById('add-meaning').value.trim(),
+    breakdown: document.getElementById('add-breakdown').value.trim(),
+    analysis: document.getElementById('add-analysis').value.trim(),
+    etymology: document.getElementById('add-etymology').value.trim(),
+    englishCognate: document.getElementById('add-englishCognate').value.trim(),
+    etymologyTier: document.getElementById('add-etymologyTier').value,
+    related: document.getElementById('add-related').value.trim().split(/\s+/).filter(Boolean),
+    examples: document.getElementById('add-examples').value.split('\n').map(s=>s.trim()).filter(Boolean),
+    tags,
+    notes: document.getElementById('add-notes').value.trim(),
+    frequency: '',
+    gender: '',
+    createdAt: id ? (state.entries.find(e=>e.id===id)?.createdAt||Date.now()) : Date.now(),
+    updatedAt: Date.now(),
+  };
+  if (id) { const i = state.entries.findIndex(e=>e.id===id); if(i>=0) state.entries[i] = entry; }
+  else state.entries.push(entry);
+  save(); closeAddModal(); render();
+  toast(`✓ 已${id?'更新':'添加'}：${word}`,'success');
+}
+
+// =========================================================================
+// BULK PASTE
+// =========================================================================
+function openPasteModal() { document.getElementById('paste-modal').classList.remove('hidden'); setTimeout(()=>document.getElementById('paste-textarea').focus(),50); }
+function closePasteModal() { document.getElementById('paste-modal').classList.add('hidden'); }
+function confirmPaste() {
+  const text = document.getElementById('paste-textarea').value;
+  const lines = text.split('\n').map(s=>s.trim()).filter(Boolean);
+  let added = 0;
+  lines.forEach(line => {
+    const parts = line.split(/\s+|，|,/).filter(Boolean);
+    const word = parts[0]; if (!word) return;
+    const meaning = parts.slice(1).join(' ') || '';
+    state.entries.push({ id:uid(), word, meaning, root:word.slice(0,3), tags:[], related:[], examples:[], createdAt:Date.now(), updatedAt:Date.now() });
+    added++;
+  });
+  save(); closePasteModal(); render();
+  toast(`✓ 已导入 ${added} 条`,'success');
+}
+
+// =========================================================================
+// TTS (Web Speech API)
+// =========================================================================
+let _ttsRate = 0.9;
+function speak(text) { if (!('speechSynthesis' in window)) { toast('浏览器不支持语音','error'); return; } window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'es-ES'; u.rate = _ttsRate; window.speechSynthesis.speak(u); }
+
+// =========================================================================
+// 导入/导出
+// =========================================================================
+function exportJSON() {
+  if (!state.entries.length) { toast('暂无数据','error'); return; }
+  const data = { entries:state.entries, tagGraph:state.tagGraph, tombstones:state.tombstones, version:1, exportedAt:new Date().toISOString() };
+  const blob = new Blob([JSON.stringify(data,null,2)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `spanish_etymology_${new Date().toISOString().slice(0,10)}.json`; a.click();
+  toast(`已导出 ${state.entries.length} 条`,'success');
+}
+function importJSON(event) {
+  const file = event.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => { try { const d = JSON.parse(reader.result); if (d.entries) { state.entries = d.entries; if (d.tagGraph) state.tagGraph = d.tagGraph; save(); render(); closeSettingsModal(); toast(`导入成功：${d.entries.length} 条`,'success'); } else toast('文件格式不对','error'); } catch(e){ toast('导入失败：'+e.message,'error'); } };
+  reader.readAsText(file);
+  event.target.value = '';
+}
+function confirmReset() { if (!confirm('确定清空所有词条恢复示例数据？')) return; localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(TAGGRAPH_KEY); state.entries=[]; state.tagGraph={}; maybeSeedExample(); save(); render(); toast('已重置','success'); }
+
+// =========================================================================
+// 最近添加（抽屉）
+// =========================================================================
+let _recentN = 10;
+function toggleRecentDrawer() { const d=document.getElementById('recent-drawer'), b=document.getElementById('recent-drawer-backdrop'); const open = d.classList.contains('open'); if(open){d.classList.remove('open');b.classList.remove('open');}else{d.classList.add('open');b.classList.add('open');renderRecent();} }
+function setRecentN(n, ev) { _recentN=n; document.querySelectorAll('.recent-n-btn').forEach(b=>{b.style.background='';b.style.color='';}); if(ev&&ev.target){ev.target.style.background='rgba(56,189,248,0.2)';ev.target.style.color='#7dd3fc';} renderRecent(); }
+function renderRecent() { const list=document.getElementById('recent-list'); if(!list)return; const items=state.entries.filter(e=>e.createdAt).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,_recentN); list.innerHTML = items.length?items.map(e=>`<div class="word-item px-3 py-2 rounded-lg border border-white/5 cursor-pointer" onclick="selectRecentEntry('${e.id}')"><span class="text-[#7dd3fc] font-bold text-base">${escapeHtml(e.word)}</span> <span class="text-slate-300 text-sm">${escapeHtml((e.meaning||'').split(/[;；]/)[0])}</span></div>`).join(''):'<div class="text-slate-500 text-sm p-2">还没有用户添加的词条</div>'; }
+function selectRecentEntry(id) { const e=state.entries.find(x=>x.id===id); if(!e)return; state.filter.letter=getLetter(e.word); state.highlightRoot=getRootKey(e); state.selectedEntryId=id; state.filter.search=''; document.getElementById('search-input').value=''; document.getElementById('search-clear').classList.add('hidden'); document.getElementById('recent-drawer').classList.remove('open'); document.getElementById('recent-drawer-backdrop').classList.remove('open'); render(); }
+
+// =========================================================================
+// TAG BROWSER
+// =========================================================================
+function openTagBrowser(focusTag) { document.getElementById('tag-browser-modal').classList.remove('hidden'); if (focusTag) { tagBrowserState.selectedTag = resolveTag(focusTag); getTagChain(focusTag).forEach(t => tagBrowserState.expanded.add(t)); } renderTagBrowser(); }
+function closeTagBrowser() { document.getElementById('tag-browser-modal').classList.add('hidden'); }
+function onTagBrowserSearch(v) { tagBrowserState.search = (v||'').trim().toLowerCase(); renderTagTree(); }
+function renderTagBrowser() { renderTagTree(); renderTagDetail(); const bc=document.getElementById('tag-browser-breadcrumb'); }
+function renderTagTree() {
+  const c = document.getElementById('tag-tree'); const roots = getRootTags().sort((a,b)=>getTagCount(b)-getTagCount(a));
+  const nodeHtml = (tag, depth) => {
+    const kids = getTagChildren(tag); const isExp = tagBrowserState.expanded.has(tag); const isSel = tagBrowserState.selectedTag===tag; const cnt = getTagCount(tag);
+    const arrow = kids.length ? `<span class="cursor-pointer inline-block w-4" onclick="event.stopPropagation();toggleTagExpand('${escapeHtml(tag).replace(/'/g,"\\'")}')">${isExp?'▾':'▸'}</span>` : '<span class="inline-block w-4"></span>';
+    return `<div class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer ${isSel?'bg-[#34d399]/15 text-[#6ee7b7]':'hover:bg-white/5 text-slate-300'}" style="margin-left:${depth*16}px" onclick="selectTagInBrowser('${escapeHtml(tag).replace(/'/g,"\\'")}')">${arrow}<span class="font-medium">${escapeHtml(tag)}</span><span class="ml-auto text-[10px] text-slate-500">${cnt}</span></div>${isExp?kids.map(k=>nodeHtml(k,depth+1)).join(''):''}`;
+  };
+  const orphan = roots.filter(t=>!state.tagGraph[t]); const grouped = roots.filter(t=>state.tagGraph[t]);
+  let html = grouped.map(t=>nodeHtml(t,0)).join('');
+  if (orphan.length) html += `<div class="text-[10px] text-slate-600 mt-2 px-1.5 uppercase">未分组 (${orphan.length})</div>` + orphan.map(t=>nodeHtml(t,0)).join('');
+  if (!roots.length) html = '<div class="text-center text-slate-500 text-sm py-8">还没有标签<br><span class="text-xs">或点 ✨ AI 重组 自动建系</span></div>';
+  c.innerHTML = html;
+}
+function toggleTagExpand(tag) { if (tagBrowserState.expanded.has(tag)) tagBrowserState.expanded.delete(tag); else tagBrowserState.expanded.add(tag); renderTagTree(); }
+function selectTagInBrowser(tag) { if (tagBrowserState.selectedTag===tag) tagBrowserState.expanded.delete(tag); else { tagBrowserState.selectedTag=tag; getTagChain(tag).forEach(t=>tagBrowserState.expanded.add(t)); } renderTagBrowser(); }
+function renderTagDetail() {
+  const p = document.getElementById('tag-detail'); const tag = tagBrowserState.selectedTag;
+  if (!tag) { p.innerHTML = '<div class="text-center text-slate-500 py-16">🏷<br>从左侧选择一个标签<br><span class="text-xs">或点 ✨ AI 重组</span></div>'; return; }
+  const words = getTagWordsCumulative(tag); const chain = getTagChain(tag); const parent = chain.length>=2?chain[chain.length-2]:null; const siblings = parent?getTagChildren(parent):[]; const children = getTagChildren(tag);
+  p.innerHTML = `<div class="fade-in"><div class="flex justify-between items-baseline mb-3"><div><span class="text-2xl font-bold text-white">${escapeHtml(tag)}</span> <span class="text-xs text-slate-500">${words.length} 词条</span></div><div class="flex gap-1"><button onclick="editTag('${escapeHtml(tag).replace(/'/g,"\\'")}')" class="px-2 py-1 text-[10px] rounded bg-white/5 border border-white/10 text-slate-300">✎ 编辑</button><button onclick="deleteTag('${escapeHtml(tag).replace(/'/g,"\\'")}')" class="px-2 py-1 text-[10px] rounded bg-[#f43f5e]/10 border border-[#f43f5e]/30 text-[#fda4af]">✕ 删除</button></div></div>${parent?`<div class="text-[10px] text-slate-500 mb-2">↑ ${escapeHtml(chain.join(' › '))}</div>`:''}<div class="grid grid-cols-1 md:grid-cols-2 gap-1">${words.map(e=>`<div onclick="jumpFromTagBrowserToEntry('${e.id}')" class="cursor-pointer px-2 py-1 rounded bg-white/[0.03] border border-white/5 hover:border-[#34d399]/30"><span class="font-bold text-white">${escapeHtml(e.word)}</span> <span class="text-xs text-slate-400">${escapeHtml((e.meaning||'').slice(0,20))}</span></div>`).join('')||'<div class="text-slate-500 italic">暂无词条</div>'}</div></div>`;
+}
+function jumpFromTagBrowserToEntry(id) { closeTagBrowser(); selectEntryAndScroll(id); }
+function editTag(tag) { const n = state.tagGraph[tag]||{parent:'',aliases:[],related:[]}; const p = prompt(`「${tag}」的父标签（留空=顶级）`, n.parent||''); if(p===null)return; if(!state.tagGraph[tag]) state.tagGraph[tag]={}; state.tagGraph[tag].parent = p.trim()||null; state.tagGraphUpdatedAt=Date.now(); save(); renderTagBrowser(); renderTagCloud(); toast('已更新标签','success'); }
+function deleteTag(tag) { if(!confirm(`删除标签「${tag}」？`))return; delete state.tagGraph[tag]; state.entries.forEach(e=>{e.tags=(e.tags||[]).filter(t=>t!==tag);}); state.tagGraphUpdatedAt=Date.now(); save(); renderTagBrowser(); renderTagCloud(); renderWordsList(); toast('已删除','success'); }
+
+// =========================================================================
+// AI 补全字段配置
+// =========================================================================
+const COMPLETION_FIELD_META = {
+  meaning:{ label:'释义', group:'内容', type:'string' },
+  breakdown:{ label:'形态拆解', group:'内容', type:'string' },
+  analysis:{ label:'词根分析', group:'内容', type:'longtext' },
+  etymology:{ label:'词源', group:'内容', type:'longtext' },
+  englishCognate:{ label:'英语同源', group:'内容', type:'string' },
+  latinOrigin:{ label:'拉丁语源', group:'内容', type:'string' },
+  examples:{ label:'例句', group:'内容', type:'array' },
+  related:{ label:'同根词', group:'内容', type:'array' },
+  tags:{ label:'标签', group:'内容', type:'array' },
+  emoji:{ label:'💭 释义emoji', group:'内容', type:'emoji' },
+  pos:{ label:'词性', group:'分类', type:'enum' },
+  etymologyTier:{ label:'词源层次', group:'分类', type:'enum' },
+};
+const COMPLETION_CONFIG_KEY = 'spanish_etymology_completion_v1';
+let completionConfig = { fields:['meaning','breakdown','analysis','etymology','englishCognate'], onlyIfEmpty:true };
+function loadCompletionConfig() { try { const r=localStorage.getItem(COMPLETION_CONFIG_KEY); if(r){const s=JSON.parse(r); if(Array.isArray(s.fields)) completionConfig.fields=s.fields.filter(f=>COMPLETION_FIELD_META[f]); if(typeof s.onlyIfEmpty==='boolean') completionConfig.onlyIfEmpty=s.onlyIfEmpty;}}catch{} }
+function saveCompletionConfig() { localStorage.setItem(COMPLETION_CONFIG_KEY, JSON.stringify(completionConfig)); }
+function isFieldEmpty(entry, field) { if(field==='emoji') return !_startsWithEmoji(entry.meaning||''); const v=entry[field]; if(v==null)return true; if(Array.isArray(v))return v.length===0; if(typeof v==='boolean')return v===false; return String(v).trim()===''; }
+function findIncompleteEntries() {
+  if (_singleEntryId) { const e=state.entries.find(x=>x.id===_singleEntryId); if(!e)return []; if(!completionConfig.onlyIfEmpty)return [e]; return completionConfig.fields.some(f=>isFieldEmpty(e,f))?[e]:[]; }
+  if (!completionConfig.onlyIfEmpty) return state.entries.slice();
+  return state.entries.filter(e => completionConfig.fields.some(f => isFieldEmpty(e,f)));
+}
+function renderCompletionFieldPicker() {
+  const grid=document.getElementById('comp-field-grid'); if(!grid)return;
+  const groups=['内容','分类']; let html='';
+  for (const g of groups) {
+    const fieldsInGroup = Object.entries(COMPLETION_FIELD_META).filter(([_,m])=>m.group===g);
+    html += `<div class="col-span-full text-[10px] text-slate-500 uppercase tracking-wider mt-1">${g}</div>`;
+    for (const [k,m] of fieldsInGroup) { const checked=completionConfig.fields.includes(k)?'checked':''; html += `<label class="flex items-center gap-1 cursor-pointer px-1.5 py-1 rounded border border-white/5 hover:border-[#a855f7]/30 ${checked?'bg-[#a855f7]/5':''}"><input type="checkbox" class="w-3 h-3 accent-[#a855f7]" ${checked} onchange="toggleCompletionField('${k}',this.checked)"><span class="text-slate-300">${m.label}</span></label>`; }
+  }
+  grid.innerHTML = html;
+  document.getElementById('comp-only-empty').checked = completionConfig.onlyIfEmpty;
+}
+function toggleCompletionField(f, on) { if(on&&!completionConfig.fields.includes(f)) completionConfig.fields.push(f); if(!on) completionConfig.fields=completionConfig.fields.filter(x=>x!==f); saveCompletionConfig(); refreshAIScanResult(); }
+function toggleCompletionOnlyIfEmpty(on) { completionConfig.onlyIfEmpty=on; saveCompletionConfig(); }
+function refreshAIScanResult() {
+  const incomplete=findIncompleteEntries(); const panel=document.getElementById('ai-scan-result'); const runBtn=document.getElementById('ai-run-btn');
+  const banner = _singleEntryId ? (()=>{const e=state.entries.find(x=>x.id===_singleEntryId);return e?`<div class="mb-3 px-3 py-2 rounded-lg bg-[#a855f7]/10 border border-[#a855f7]/30 text-xs text-[#d8b4fe]">🎯 单词条补全：<span class="font-bold text-white">${escapeHtml(e.word)}</span></div>`:'';})():'';
+  if (completionConfig.fields.length===0) { panel.innerHTML=banner+`<div class="text-center py-4 text-xs text-[#fbbf24]">⚠ 请至少选择一个补全字段</div>`; runBtn.disabled=true; runBtn.classList.add('opacity-50','cursor-not-allowed'); return; }
+  if (!incomplete.length) { panel.innerHTML=banner+`<div class="text-center py-6"><div class="text-3xl mb-2">✓</div><p class="text-[#6ee7b7]">${_singleEntryId?'该词条':'所有词条'}所选字段均已完整</p><p class="text-xs text-slate-500 mt-1">取消「仅填空字段」可强制覆盖</p></div>`; runBtn.disabled=true; runBtn.classList.add('opacity-50','cursor-not-allowed'); return; }
+  panel.innerHTML=banner+`<div class="bg-white/[0.03] border border-white/10 rounded-lg p-4"><div class="text-base text-white mb-2">${_singleEntryId?'该词条':`${incomplete.length} / ${state.entries.length} 条需补全`}</div></div>`;
+  runBtn.disabled=false; runBtn.classList.remove('opacity-50','cursor-not-allowed');
+}
+
+// =========================================================================
+// AI 提示词
+// =========================================================================
+function buildAIEntryPrompt(input, existingTags) {
+  const tagConstraint = `\n【语义标签强制约束（tags 字段）】\ntags 必须是「一级大类 > 二级子类」格式：\n${_tagTaxonomyText()}\n- 格式示例："饮食·食物·烹饪 > 甜品"、"动作·行为·过程 > 移动"、"自然·天文·地理·生物 > 水"\n- 一级大类必须是上面 20 个之一；禁止词性/语法标签\n- 同条目多标签不得同属一大类；1-3 个\n`;
+  return `你是西班牙语历史语言学者、词源专家和优秀语言教师，精通通俗拉丁语、古典拉丁语、古西班牙语、印欧语词根，以及西语构词法（前缀+词根+连接元音+后缀+屈折词尾）。
+
+【读者】西班牙语初学者。所有西语词必须给拉丁化注音（圆括号）；拉丁语词源用斜体或括号注明。
+
+【任务】为输入「${input}」生成一个结构化词条 JSON。
+
+【字段说明】
+- word: 西班牙语标准形式（如 helado）
+- pos: 词性（sustantivo/verbo/adjetivo/adverbio/pronombre/preposición/conjunción/artículo/sufijo/prefijo/raíz）
+- gender: 阴阳性（m/f，名词/形容词填）
+- root: 核心词根（如 hel-）；sufijo/prefijo 类填自身（如 -ado）
+- rootMeaning: 词根核心含义（如 寒冷、凝固）
+- latinOrigin: 拉丁语源形式（如 gelatus）
+- meaning: 中文释义。**开头放 1-3 个 emoji**（呼应词根义），如 💧水 / 🍦冰淇淋 / 👄🌶️🪡辣。多义项用；分隔
+- breakdown: 形态拆解，格式「词根(义) + 后缀(义)」，如 hel-(寒冷词根) + -ado(过去分词后缀)
+- analysis: 词根语义流转分析 50-150 字
+- etymology: 词源追溯，展示 拉丁语 → 古西班牙语 → 现代形式，标注音变（f→h、ĕ→ie、-ct→ch 等）
+- englishCognate: 英语同源词（如 gelatin/gelato）
+- cognates: 数组 [{lang, word}]，如 [{lang:'意大利语',word:'gelato'},{lang:'法语',word:'gelé'}]
+- etymologyTier: 词源层次（通俗拉丁语继承词/古典拉丁语借词/希腊语来源/阿拉伯语来源/日耳曼语来源/法语借词/英语借词/美洲原住民语言/内部新造词）
+- examples: 数组，每条 "西语 — 中文"
+- related: 同根词数组
+${tagConstraint}
+【参考：常见拉丁词根】${COMMON_LATIN_ROOTS.join('；')}
+【参考：核心音变规则】${SOUND_CHANGES.map(s=>s.rule+'（'+s.ex+'）').join('；')}
+
+【输出】仅输出严格 JSON，无 markdown 代码块：
+{"word":"","pos":"","gender":"","root":"","rootMeaning":"","latinOrigin":"","meaning":"","breakdown":"","analysis":"","etymology":"","englishCognate":"","cognates":[],"etymologyTier":"","examples":[],"related":"","tags":[]}`;
+}
+function buildCompletionPrompt(batch) {
+  const fields = completionConfig.fields.filter(f => f !== 'emoji');
+  const hasEmoji = completionConfig.fields.includes('emoji');
+  const wordList = batch.map((e,i) => `${i+1}. ${e.word} | 释义:${e.meaning||'?'} | 词根:${e.root||'?'}${e.latinOrigin?' | 拉丁:'+e.latinOrigin:''}`).join('\n');
+  const fieldDesc = {
+    meaning:'中文释义。开头放 1-3 个 emoji（呼应词根义），如 💧水/🍦冰淇淋',
+    breakdown:'形态拆解「词根(义) + 后缀(义)」',
+    analysis:'词根语义流转分析 50-150 字',
+    etymology:'词源：拉丁语→古西语→现代，标注音变',
+    englishCognate:'英语同源词',
+    latinOrigin:'拉丁语源形式',
+    examples:'例句数组，每条"西语 — 中文"',
+    related:'同根词数组',
+    tags:'语义标签数组，格式「一级大类 > 二级子类」。20 大类：'+Object.keys(_TAG_SUB_EXAMPLES).join(' / '),
+    pos:'词性',
+    etymologyTier:'词源层次',
+  };
+  const fieldList = fields.map(f=>`- ${f}: ${fieldDesc[f]||''}`).join('\n');
+  const sampleObj = { word: batch[0]?.word||'' }; fields.forEach(f => { if (f==='examples'||f==='related'||f==='tags'||f==='cognates') sampleObj[f]=[]; else sampleObj[f]=''; });
+  if (hasEmoji) { sampleObj.emoji = ''; fieldList += `\n- emoji: 1-3 个 emoji（呼应词根义），仅输出 emoji 本身`; }
+  return `你是西班牙语历史语言学者。基于拉丁词根与音变规则，为下列词条补全字段。
+
+【音变参考】${SOUND_CHANGES.map(s=>s.rule).join('；')}
+【拉丁词根】${COMMON_LATIN_ROOTS.slice(0,10).join('；')}
+
+【词条】
+${wordList}
+
+【任务】只生成下列字段：
+${fieldList}
+
+【输出】仅严格 JSON：{"results":[${JSON.stringify(sampleObj)}]}
+每个 word 必须与输入对应。`;
+}
+function extractJSON(text) { let t=text.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```\s*$/,''); const s=t.indexOf('{'), e=t.lastIndexOf('}'); if(s<0||e<0) throw new Error('响应未找到 JSON'); return JSON.parse(t.slice(s,e+1)); }
+
+// =========================================================================
+// AI 新词条
+// =========================================================================
+let _aiAddLastEntry = null;
+function openAIAddModal() { document.getElementById('ai-add-modal').classList.remove('hidden'); document.getElementById('ai-add-input').value=''; const c=document.getElementById('ai-add-clear'); if(c)c.classList.add('hidden'); document.getElementById('ai-add-status').classList.add('hidden'); document.getElementById('ai-add-preview').classList.add('hidden'); _aiAddLastEntry=null; setTimeout(()=>document.getElementById('ai-add-input').focus(),50); }
+function closeAIAddModal() { document.getElementById('ai-add-modal').classList.add('hidden'); }
+function _setStatus(msg, type='info') { const el=document.getElementById('ai-add-status'); const colors={info:'text-slate-300 bg-white/5 border-white/10',success:'text-[#6ee7b7] bg-[#34d399]/10 border-[#34d399]/30',error:'text-[#fda4af] bg-[#f43f5e]/10 border-[#f43f5e]/30'}; el.className=`mb-3 text-xs px-3 py-2 rounded-lg border ${colors[type]}`; el.textContent=msg; el.classList.remove('hidden'); }
+async function runAINewEntry() {
+  const input = document.getElementById('ai-add-input').value.trim();
+  if (!input) { toast('请输入单词','error'); return; }
+  const primaryLLM = getLLMSlot('primary');
+  if (!primaryLLM.apiKey) { _setStatus('请先在 ⚙ 设置里填写主 LLM 的 API Key','error'); return; }
+  const btn = document.getElementById('ai-add-btn'); btn.disabled=true; btn.textContent='分析中…';
+  _setStatus('AI 分析中…','info');
+  try {
+    const prompt = buildAIEntryPrompt(input, getAllTags());
+    const resp = await callLLM(primaryLLM, prompt, 4096);
+    const parsed = extractJSON(resp);
+    const entry = normalizeAIEntry(parsed);
+    _aiAddLastEntry = entry;
+    _renderAIAddPreview(entry);
+    _setStatus('✓ 已生成，确认后点「添加」','success');
+  } catch(e) { _setStatus('✗ 失败：'+e.message,'error'); console.error(e); }
+  finally { btn.disabled=false; btn.textContent='分析'; }
+}
+function normalizeAIEntry(p) {
+  const w = String(p.word||'').trim();
+  return {
+    id: uid(),
+    word: w,
+    pos: String(p.pos||'').trim(),
+    gender: String(p.gender||'').trim(),
+    root: String(p.root||'').trim() || (w?w.slice(0,3):''),
+    rootMeaning: String(p.rootMeaning||'').trim(),
+    latinOrigin: String(p.latinOrigin||'').trim(),
+    meaning: String(p.meaning||'').trim(),
+    breakdown: String(p.breakdown||'').trim(),
+    analysis: String(p.analysis||'').trim(),
+    etymology: String(p.etymology||'').trim(),
+    englishCognate: String(p.englishCognate||'').trim(),
+    cognates: Array.isArray(p.cognates)?p.cognates:[],
+    etymologyTier: String(p.etymologyTier||'').trim(),
+    examples: Array.isArray(p.examples)?p.examples.map(s=>String(s).trim()).filter(Boolean):[],
+    related: Array.isArray(p.related)?p.related.map(s=>String(s).trim()).filter(Boolean):[],
+    tags: Array.isArray(p.tags)?p.tags.map(_ingestTag).filter(Boolean):[],
+    notes: '',
+    frequency: '',
+    createdAt: Date.now(), updatedAt: Date.now(),
+  };
+}
+function _renderAIAddPreview(entry) {
+  const tagPills = (entry.tags||[]).map(t => { const ch=getTagChain(t)||[t]; return `<span class="tag-pill">${ch.map(escapeHtml).join(' › ')}</span>`; }).join(' ');
+  document.getElementById('ai-add-preview').innerHTML = `<div class="bg-white/[0.03] border border-white/10 rounded-xl p-4 fade-in">
+    <div class="flex items-baseline gap-2 mb-2 flex-wrap"><span class="text-3xl font-bold text-white">${escapeHtml(entry.word)}</span>${entry.pos?`<span class="text-[10px] px-2 py-0.5 rounded-full bg-[#a855f7]/15 text-[#d8b4fe] border border-[#a855f7]/30">${escapeHtml(entry.pos)}</span>`:''}${entry.gender?`<span class="text-[10px] px-2 py-0.5 rounded-full bg-[#f43f5e]/15 text-[#fda4af] border border-[#f43f5e]/30">${escapeHtml(entry.gender)}</span>`:''}</div>
+    <div class="text-xs text-slate-400 mb-2">词根 <span class="text-[#f43f5e] font-bold">${escapeHtml(entry.root)}</span>${entry.rootMeaning?` · ${escapeHtml(entry.rootMeaning)}`:''}${entry.latinOrigin?` · 拉丁 <span class="text-[#fbbf24] italic">${escapeHtml(entry.latinOrigin)}</span>`:''}</div>
+    <div class="text-sm text-[#fde68a] mb-2">${escapeHtml(entry.meaning)}</div>
+    ${entry.breakdown?`<div class="text-xs mb-2 leading-loose">${renderMorphology(entry.breakdown)}</div>`:''}
+    ${tagPills?`<div class="mb-3">${tagPills}</div>`:''}
+    <button onclick="applyAIAddEntry()" class="px-4 py-2 text-sm rounded-lg bg-[#34d399] hover:bg-[#10b981] text-slate-900 font-semibold w-full">✓ 添加到词典</button>
+  </div>`;
+  document.getElementById('ai-add-preview').classList.remove('hidden');
+}
+function applyAIAddEntry() {
+  if (!_aiAddLastEntry) return;
+  state.entries.push(_aiAddLastEntry);
+  save(); render();
+  toast(`✓ 已添加：${_aiAddLastEntry.word}`,'success');
+  state.selectedEntryId = _aiAddLastEntry.id;
+  state.filter.letter = getLetter(_aiAddLastEntry.word);
+  state.highlightRoot = getRootKey(_aiAddLastEntry);
+  closeAIAddModal(); render();
+}
+
+// =========================================================================
+// AI 补全
+// =========================================================================
+let _singleEntryId = null;
+let _aiBackgroundRunning = false;
+let aiState = { running:false, cancelRequested:false };
+function openAIModal(entryId) {
+  _singleEntryId = entryId||null;
+  const cLLM = getLLMSlot('completion');
+  if (!cLLM.apiKey) { toast('请先在 ⚙ 设置里填写补全 LLM 的 API Key','error'); activeLLMTab='completion'; openSettingsModal(); return; }
+  renderCompletionFieldPicker(); refreshAIScanResult();
+  document.getElementById('ai-scan-panel').classList.remove('hidden');
+  document.getElementById('ai-progress-panel').classList.add('hidden');
+  document.getElementById('ai-modal').classList.remove('hidden');
+}
+function closeAIModal() { if (aiState.running) { _aiBackgroundRunning=true; document.getElementById('ai-modal').classList.add('hidden'); return; } document.getElementById('ai-modal').classList.add('hidden'); }
+function cancelAICompletion() { aiState.cancelRequested=true; toast('停止请求已发送…','info'); }
+function backgroundAICompletion() { if(!aiState.running){toast('当前无任务','info');return;} _aiBackgroundRunning=true; document.getElementById('ai-modal').classList.add('hidden'); toast('已切到后台，完成会通知','info'); }
+async function runAICompletion() {
+  const incomplete = findIncompleteEntries();
+  if (!incomplete.length) { toast('无需补全','info'); return; }
+  document.getElementById('ai-scan-panel').classList.add('hidden');
+  document.getElementById('ai-progress-panel').classList.remove('hidden');
+  document.getElementById('ai-close-btn').classList.add('hidden');
+  document.getElementById('ai-cancel-btn').classList.remove('hidden');
+  document.getElementById('ai-log').innerHTML = '';
+  aiState.running=true; aiState.cancelRequested=false;
+  const batchSize=5, total=incomplete.length; let totalUpdated=0;
+  aiLog(`开始补全 ${total} 条`,'info'); updateAIProgress(0,total,'');
+  for (let i=0; i<total; i+=batchSize) {
+    if (aiState.cancelRequested) { aiLog('已取消','error'); break; }
+    const batch = incomplete.slice(i, i+batchSize);
+    aiLog(`第 ${Math.floor(i/batchSize)+1} 批：${batch.map(e=>e.word).join(', ')}`,'info');
+    updateAIProgress(i,total,batch[0]?.word);
+    try {
+      const prompt = buildCompletionPrompt(batch);
+      const resp = await callLLM(getLLMSlot('completion'), prompt, 4096);
+      const parsed = extractJSON(resp);
+      const updated = applyCompletions(batch, parsed);
+      totalUpdated += updated; aiLog(`✓ 完成 ${updated}/${batch.length}`,'success'); save(); render();
+    } catch(e) { aiLog(`✗ ${e.message}`,'error'); }
+    if (i+batchSize<total && !aiState.cancelRequested) await new Promise(r=>setTimeout(r,800));
+    updateAIProgress(Math.min(i+batchSize,total),total,'');
+  }
+  updateAIProgress(total,total,'完成');
+  aiState.running=false;
+  document.getElementById('ai-cancel-btn').classList.add('hidden');
+  document.getElementById('ai-close-btn').classList.remove('hidden');
+  document.getElementById('ai-current').textContent=`✓ 完成 · 共补全 ${totalUpdated} 条`;
+  aiLog(`全部完成！${totalUpdated} 条`,'success');
+  toast(`AI 补全完成：${totalUpdated} 条`,'success');
+  if (_singleEntryId) { renderDetail(); renderWordsList(); }
+  _aiBackgroundRunning=false; _singleEntryId=null;
+}
+function applyCompletions(batch, results) {
+  let updated=0;
+  for (const r of (results.results||[])) {
+    const target = batch.find(e => e.word === r.word); if (!target) continue;
+    let changed=false;
+    for (const field of completionConfig.fields) {
+      const newVal = r[field];
+      if (field==='emoji') { const ev=String(newVal||'').trim().replace(/\s+/g,''); if(!ev)continue; const cur=target.meaning||''; if(_startsWithEmoji(cur))continue; target.meaning=ev+cur; changed=true; continue; }
+      if (newVal==null) continue;
+      if (Array.isArray(newVal)&&newVal.length===0) continue;
+      if (typeof newVal==='string'&&newVal.trim()==='') continue;
+      if (completionConfig.onlyIfEmpty && !isFieldEmpty(target, field)) continue;
+      const fv = (field==='tags') ? (Array.isArray(newVal)?newVal.map(_ingestTag):[]).filter(Boolean) : newVal;
+      if (Array.isArray(fv)) target[field] = fv.slice(0,12);
+      else target[field] = String(fv).trim();
+      changed=true;
+    }
+    if (changed) { target.updatedAt=Date.now(); updated++; }
+  }
+  return updated;
+}
+function aiLog(msg, type='info') { const el=document.getElementById('ai-log'); if(!el)return; const colors={info:'text-slate-400',success:'text-[#6ee7b7]',error:'text-[#fda4af]'}; el.innerHTML += `<div class="${colors[type]}">${escapeHtml(msg)}</div>`; el.scrollTop = el.scrollHeight; }
+function updateAIProgress(done, total, label) { const pct = total?Math.round(done/total*100):0; document.getElementById('ai-progress-bar').style.width=pct+'%'; document.getElementById('ai-progress-text').textContent=`${done} / ${total}`; document.getElementById('ai-current').textContent=label||''; }
+
+// =========================================================================
+// AI 标签重组（简化版）
+// =========================================================================
+function restructureTagsWithAI() { toast('标签重组需配置 AI，请先用「AI 补全」给词条加 tags 后再使用','info'); }
+
+// =========================================================================
+// 种子数据 — hel-/gel- 词族（拉丁 gelatus：寒冷、凝固）
+// =========================================================================
+function maybeSeedExample() {
+  if (state.entries.length > 0) return;
+  const now = Date.now();
+  const seed = [
+    { word:'helado', pos:'sustantivo', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelatus',
+      meaning:'🍦冰淇淋；冰冻的', breakdown:'hel-(寒冷词根) + -ado(过去分词后缀→形容词/名词)',
+      analysis:'拉丁 gelatus「冻结的」经 g→h 音变进入西语为 hel-，核心语义「寒冷/凝固」。-ado 派生形容词「冰冻的」，名词化为「冰淇淋」。',
+      etymology:'拉丁语 gelatus（冻结的，gelare「使结冰」的过去分词）→ 通俗拉丁语 *ghelatos → 古西班牙语 helado（g→h 音变：拉丁词首 g/e,i 前在西语变为 h，再脱落为哑音）。同源：意大利语 gelato、法语 gelé、英语 congeal/gelatin。',
+      englishCognate:'gelato / congeal / gelatin', cognates:[{lang:'意大利语',word:'gelato'},{lang:'法语',word:'gelé'},{lang:'英语',word:'gelatin'}],
+      etymologyTier:'通俗拉丁语继承词', examples:['Quiero un helado de chocolate. — 我要一个巧克力冰淇淋。','Está helado hoy. — 今天冷得冻人。'],
+      related:['helar','helada','hielo','heladero','gelatina'], tags:['饮食·食物·烹饪 > 甜品'], createdAt:now },
+    { word:'helar', pos:'verbo', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelare',
+      meaning:'❄️使结冰；冷冻；<口语>冻僵', breakdown:'hel-(寒冷) + -ar(动词后缀)',
+      analysis:'gelare「使结冰」的直接继承，-ar 为第一变位动词词尾。核心义「使转化为冰」。',
+      etymology:'拉丁 gelare（使结冰）→ 西语 helar（g→h）。同英语 congeal（con+gelare）。',
+      englishCognate:'congeal', etymologyTier:'通俗拉丁语继承词',
+      examples:['El agua se heló. — 水结冰了。'], related:['helado','helada','hielo'], tags:['状态·性质·变化 > 温度'], createdAt:now+1 },
+    { word:'helada', pos:'sustantivo', gender:'f', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelata',
+      meaning:'🌫️霜冻；冰冻', breakdown:'hel-(寒冷) + -ada(动作/结果后缀)',
+      analysis:'-ada 此处表「发生/结果」，即「结霜这一现象/其后果」。',
+      etymology:'由 helar 加 -ada 构成。农业语境常用：una helada destrozó la cosecha。',
+      englishCognate:'', etymologyTier:'通俗拉丁语继承词',
+      examples:['Hubo una helada anoche. — 昨夜下了一场霜。'], related:['helado','helar','hielo'], tags:['自然·天文·地理·生物 > 气象'], createdAt:now+2 },
+    { word:'hielo', pos:'sustantivo', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelus',
+      meaning:'🧊冰；冷酷', breakdown:'hiel-(来自 gel-，元音裂化) + -o(名词词尾)',
+      analysis:'拉丁 gelus「冰」（主格 gelu）→ 西语 hielo。注意 e→ie 裂元音变体，且 l 保留。',
+      etymology:'拉丁 gelu/gelus（寒冷、冰）→ 古西语 hielo。词义由「冷」具象化为「冰」。',
+      englishCognate:'gel', etymologyTier:'通俗拉丁语继承词',
+      examples:['El hielo se derritió. — 冰融化了。'], related:['helado','helar','helada'], tags:['自然·天文·地理·生物 > 水'], createdAt:now+3 },
+    { word:'heladero', pos:'sustantivo', gender:'m', root:'hel-', rootMeaning:'寒冷、凝固', latinOrigin:'',
+      meaning:'🍧冰淇淋商；冷冻柜', breakdown:'hel-(寒冷) + -ero(职业/容器后缀)',
+      analysis:'-ero 双义后缀：表人（卖冰淇淋者）与表物（存放冰淇淋的容器/冷柜）。',
+      etymology:'helado + -ero 派生。', englishCognate:'', etymologyTier:'内部新造词',
+      examples:['El heladero viene en verano. — 冰淇淋商夏天来。'], related:['helado','helar'], tags:['人物·人际·家庭 > 职业','饮食·食物·烹饪'], createdAt:now+4 },
+    { word:'gelatina', pos:'sustantivo', gender:'f', root:'gel-', rootMeaning:'寒冷、凝固', latinOrigin:'gelatina',
+      meaning:'🍮明胶；果冻', breakdown:'gel-(凝固词根) + -atina(后缀)',
+      analysis:'与 hel- 同源（拉丁 gelare），但 gel- 形式保留 g，多为文艺复兴后学术/书面借词，故显「科学/外来」色彩。',
+      etymology:'意大利语/拉丁语 gelatina → 西语 gelatina（保留 g，为后期借词，未经历 g→h 音变）。英语 gelatin 同源。',
+      englishCognate:'gelatin / jelly', cognates:[{lang:'意大利语',word:'gelatina'},{lang:'英语',word:'gelatin'}],
+      etymologyTier:'古典拉丁语借词', examples:['Me gusta la gelatina de fresa. — 我喜欢草莓果冻。'],
+      related:['helado','gel'], tags:['饮食·食物·烹饪'], createdAt:now+5 },
+    { word:'-ado', pos:'sufijo', root:'-ado', rootMeaning:'过去分词→形容词/名词', latinOrigin:'-atus',
+      meaning:'📎过去分词后缀；表「…化的/有…的」', breakdown:'-ado(过去分词后缀)',
+      analysis:'拉丁 -atus → 西语 -ado。接 -ar 动词词干，构成完成时/被动/形容词。是西语最高频后缀之一。',
+      etymology:'拉丁过去分词后缀 -atus（如 laudatus）→ 西语 -ado。',
+      englishCognate:'-ade / -ate', etymologyTier:'通俗拉丁语继承词',
+      examples:['helado（冰冻的）、cansado（累的）、sentado（坐着的）'], related:['helado','cansado','sentado'], tags:[], createdAt:now+6 },
+    // 补充几个其他字母的常见词族
+    { word:'amar', pos:'verbo', root:'am-', rootMeaning:'爱', latinOrigin:'amare',
+      meaning:'❤️爱', breakdown:'am-(爱词根) + -ar(动词后缀)',
+      analysis:'拉丁 amare「爱」，印欧词根 *am-「爱/亲和」。西语第一变位动词，规则变化。',
+      etymology:'拉丁 amare → 西语 amar。同根：amor, amable, amante, amistad。英语 amiable/amateur 同源。',
+      englishCognate:'amiable / amateur', etymologyTier:'通俗拉丁语继承词',
+      examples:['Te amo. — 我爱你。'], related:['amor','amable','amante','amistad'], tags:['情感·心理·性格 > 爱'], createdAt:now+7 },
+    { word:'amor', pos:'sustantivo', gender:'m', root:'am-', rootMeaning:'爱', latinOrigin:'amor',
+      meaning:'❤️爱；爱情；爱人', breakdown:'am-(爱) + -or(抽象名词后缀)',
+      analysis:'-or 表抽象状态，amor 即「爱的状态/情感」。',
+      etymology:'拉丁 amor, -ōris → 西语 amor。', englishCognate:'amour / amorous', etymologyTier:'通俗拉丁语继承词',
+      examples:['El amor es ciego. — 爱情是盲目的。'], related:['amar','amable','amante'], tags:['情感·心理·性格 > 爱'], createdAt:now+8 },
+    { word:'luz', pos:'sustantivo', gender:'f', root:'luc-/luz', rootMeaning:'光', latinOrigin:'lux, lucis',
+      meaning:'💡光；光明', breakdown:'luz(光，来自 luc-)',
+      analysis:'拉丁 lux（主格）/ lucis（属格）→ 西语 luz。词根 lumin-/luc- 表「光」。',
+      etymology:'拉丁 lux, lucis → 西语 luz（c→z 音变）。同根：lunar, iluminar, lumbrera。',
+      englishCognate:'light / lucid / luminous', etymologyTier:'通俗拉丁语继承词',
+      examples:['La luz del sol. — 太阳的光。'], related:['iluminar','lunar','lumbrera'], tags:['自然·天文·地理·生物 > 光'], createdAt:now+9 },
+    { word:'decir', pos:'verbo', root:'dic-/dec-', rootMeaning:'说', latinOrigin:'dicere',
+      meaning:'🗣️说；告诉', breakdown:'dec-(说词根，来自 dic-) + -ir(动词后缀)',
+      analysis:'拉丁 dicere「说」，印欧词根 *deik-「指出/说」。西语为不规则动词（e→i 词干变化）。',
+      etymology:'拉丁 dicere → 西语 decir。同根：dictar, dictado, dictamen, edición, predicar。',
+      englishCognate:'diction / dictate / dictionary', etymologyTier:'通俗拉丁语继承词',
+      examples:['¿Qué dices? — 你说什么？'], related:['dictar','dictado','edición','predicar'], tags:['语言·文字·思维 > 词汇'], createdAt:now+10 },
+    { word:'reconstrucción', pos:'sustantivo', gender:'f', root:'struct-', rootMeaning:'建造', latinOrigin:'struct-',
+      meaning:'🏗️重建；重构', breakdown:'re-(再) + con-(共同) + struct-(建造) + -ción(动作名词后缀)',
+      analysis:'完美展示西语三段拆解：re（再/回）+ con（共同/加强）+ struct（建造词根）+ -ción（动作结果名词化）。字面「再次共同建造」→「重建」。',
+      etymology:'拉丁 restructuring 的后裔；struct- 来自 struere「堆叠/建造」的过去分词。-cción 来自拉丁 -ctionem。-ct- → -cc- 保留（书面色彩）。',
+      englishCognate:'reconstruction', etymologyTier:'古典拉丁语借词',
+      examples:['La reconstrucción del puente. — 桥梁的重建。'], related:['construir','estructura','destruir'], tags:['动作·行为·过程 > 建造'], createdAt:now+11 },
+  ];
+  seed.forEach(e => { e.id = uid(); e.updatedAt = e.createdAt; });
+  state.entries = seed;
+  // 建立标签链
+  state.entries.forEach(e => { if (e.tags) e.tags = e.tags.map(_ingestTag).filter(Boolean); });
+  save();
+}
+
+// =========================================================================
+// INIT
+// =========================================================================
+document.addEventListener('keydown', (e) => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
+  if (e.key === '/') { e.preventDefault(); document.getElementById('search-input').focus(); }
+  else if (e.key.toLowerCase() === 'n') { openAddModal(); }
+  else if (e.shiftKey && e.key.toLowerCase() === 'a') { e.preventDefault(); openAIAddModal(); }
+  else if (e.key.toLowerCase() === 'h') { document.getElementById('app-header').classList.toggle('header-collapsed'); }
+});
+load();
+loadSettings();
+loadCompletionConfig();
+maybeSeedExample();
+startCloudSync();
+render();
+updateAIButton();
+updateSyncStatusUI();
+</script>
+</body>
+</html>
