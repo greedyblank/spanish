@@ -1,5 +1,18 @@
 # 更新记录 · CHANGELOG
 
+## 西4 — 发音系统 / 多词根 / PCIC 分类 / 交互重构（2026-07-10）
+
+- **发音标注系统**（#1）：新增 `ipa`（国际音标）+ `pronNote`（发音说明：重音/特殊字母/西美差异）两字段。详情卡新增「发音 Pronunciación」区；新增/编辑表单、AI 新词条 prompt、AI 补全字段均已接入。种子数据补全 IPA。
+- **多词根/词缀模型**（#2）：新增 `roots[]` 数组，一个词可同时归属多个词根/词缀（如 reconstrucción → struct- / re- / con- / -ción）。`getRootKeys()` 聚合主词根+附加；词根列表按各词根分别计数分组；词根/词缀自身条目在词族中排首条（`getEntriesForRoot` 自条目优先）；详情卡词根显示为多枚可点击 chip。
+- **跨语言同源/相关词补释义+发音**（#3）：cognates 扩展为 `{lang,word,ipa,meaning}`；同根词 Familia 若库内已有则显示释义+IPA 且可点击跳转；prompt 要求每个 cognate 带发音和中文释义。
+- **形态拆解语素点击跳转**（#4）：breakdown 各语素可点击 → 高亮对应词根/词缀并切到词根详情（不筛选）。
+- **AI 补全不阻塞**（#5）：`applyCompletions` 单字段 try/catch，某字段赋值失败（如只读属性）静默跳过，不阻断整批，不动无关标签。
+- **阴阳性徽章配色 + 中文化**（#6/#10）：阳性=白底黑字实心、阴性=空心白字（`genderBadge`）；显示为中文「阳/阴」（`genderLabel`，数据仍存 m/f）。所有属性标签中文化。
+- **PCIC 官方分类体系**（#7）：语义标签一级大类换为 Instituto Cervantes《Plan Curricular》Nociones Específicas 官方 20 类（中文标签）。`_routeTagToRoot` 重写路由到 PCIC；`migrateTaxonomyToPCIC()` 一次性迁移历史数据（旧→新映射 + 版本守卫）；种子数据、AI prompt 全部对齐。详见 ADR 0003。
+- **单击/双击交互重构 + 三系统并行**（#8）：单击词源/词条=仅高亮+详情，不筛选、不进入分组；双击词源→跳到首个单词、双击词条→反向联动到主词根，均不筛选；仅「导图字母」「词根分组标题」触发筛选。搜索/标签/词根三系统并行求交（`getVisibleEntries`），互不清空。详见 ADR 0004。
+- **全部词源/仅词根/仅词缀筛选**（#9）：左栏标题改「全部词源」，新增类型筛选按钮（`setRootTypeFilter` + `classifyRoot` 词缀分类）。此前按钮调用未定义函数（报错），本次补齐。
+- **Bug 修复**：`saveEntry` 编辑时用展开 existing 保留表单未覆盖字段（此前会清空 gender/cognates/verbClass/regularity/register/frequency 等，造成编辑丢数据）。
+
 ## 西3 — 6 项特性补全（参考韩/日）（2026-07-06）
 
 - **词根释义带 emoji**（#8）：种子 rootMeaning 加 emoji 前缀（hel-→❄️寒冷、凝固；am-→❤️爱；luz→💡光）；AI 新词条 prompt 引导 rootMeaning 开头带 1-2 emoji。
