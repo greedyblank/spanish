@@ -127,7 +127,8 @@
         <div class="flex items-center gap-1"><span class="text-[#34d399] font-bold text-sm" id="stat-letters">0</span><span>/27 字母</span></div>
       </div>
       <div class="flex flex-wrap items-center gap-1.5 justify-end">
-        <button id="nav-back-btn" onclick="navBack()" class="px-2.5 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition" title="返回上一视图（全局历史回退，可连续点）">← 返回</button>
+        <button id="nav-back-btn" onclick="navBack()" class="px-2.5 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition" title="返回上一视图（Alt+←）">←</button>
+        <button id="nav-fwd-btn" onclick="navForward()" class="px-2.5 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition opacity-30 pointer-events-none" title="前进到下一视图（Alt+→）">→</button>
         <button onclick="openAIAddModal()" class="px-2.5 py-1.5 text-xs rounded-lg bg-gradient-to-r from-[#a855f7]/25 to-[#ec4899]/25 hover:from-[#a855f7]/35 hover:to-[#ec4899]/35 border border-[#a855f7]/40 text-[#d8b4fe] transition" title="输入西语或中文，AI 自动分析补全">✨ AI 新词条</button>
         <button onclick="openAIModal()" id="ai-btn" class="px-2.5 py-1.5 text-xs rounded-lg bg-gradient-to-r from-[#a855f7]/25 to-[#ec4899]/25 hover:from-[#a855f7]/35 hover:to-[#ec4899]/35 border border-[#a855f7]/40 text-[#d8b4fe] transition">✨ AI 补全</button>
         <button onclick="openSettingsModal()" class="w-8 h-8 flex items-center justify-center text-sm rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 hover:text-slate-200 transition" title="系统设置">⚙</button>
@@ -531,25 +532,35 @@ let state = {
 };
 let tagCloudState = { selectedTag:null, selectedSubTag:null, expandedRoot:null, expanded:new Set() };
 let tagBrowserState = { selectedTag:null, expanded:new Set(), search:'' };
-// 全局导航历史栈（#2）：每次「定位到一个新视图」压栈，「返回」逐级回退
+// 全局导航历史栈（#2）：每次「定位到一个新视图」压栈，「返回/前进」逐级回退。
+// 注意：只在当前页面生命周期有效，刷新页面后清空。
 let _navHistory = [];
+let _navForward = [];   // 前进栈：后退时把当前视图推入，前进时弹出
 function _navSnapshot() {
   return { selectedEntryId: state.selectedEntryId, highlightRoot: state.highlightRoot,
     letter: state.filter.letter, search: state.filter.search,
-    tag: tagCloudState.selectedTag, rootTypeFilter: state.rootTypeFilter };
+    tag: tagCloudState.selectedTag, subTag: tagCloudState.selectedSubTag, rootTypeFilter: state.rootTypeFilter };
 }
 function _navRestore(s) {
   state.selectedEntryId = s.selectedEntryId; state.highlightRoot = s.highlightRoot;
   state.filter.letter = s.letter; state.filter.search = s.search;
-  tagCloudState.selectedTag = s.tag; state.rootTypeFilter = s.rootTypeFilter;
+  tagCloudState.selectedTag = s.tag; tagCloudState.selectedSubTag = s.subTag;
+  state.rootTypeFilter = s.rootTypeFilter;
   const si = document.getElementById('search-input');
   if (si) { si.value = s.search||''; const sc=document.getElementById('search-clear'); if(sc) sc.classList.toggle('hidden', !s.search); }
   syncRootTypeFilterBtns(); syncToggleRootEntriesBtn();
 }
-function pushNav() { _navHistory.push(_navSnapshot()); if (_navHistory.length > 60) _navHistory.shift(); }
+function pushNav() { _navHistory.push(_navSnapshot()); _navForward = []; if (_navHistory.length > 80) _navHistory.shift(); }
 function navBack() {
   if (!_navHistory.length) { toast('已是最早的视图','info'); return; }
+  _navForward.push(_navSnapshot());
   _navRestore(_navHistory.pop());
+  render(); scrollToActiveItems();
+}
+function navForward() {
+  if (!_navForward.length) { toast('已是最新的视图','info'); return; }
+  _navHistory.push(_navSnapshot());
+  _navRestore(_navForward.pop());
   render(); scrollToActiveItems();
 }
 
@@ -1169,14 +1180,13 @@ function renderCognatesBlock(e) {
   // 多语言横向紧凑排列：语言缩写 + 词条药丸（不鼠标悬浮不点亮非点击项，发音按钮除外）
   const rows = groups.map(g => {
     const abbr = langAbbr(g.lang);
-    const code = langCode(g.lang);
     const chips = g.words.map(w => {
       const hasData = w.ipa || w.meaning;
       return `<span class="cognate-pill inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-[11px]">
         <span class="text-[#7dd3fc] italic">${escapeHtml(w.word)}</span>
         ${w.ipa?`<span class="text-slate-500 font-mono">${escapeHtml(w.ipa)}</span>`:''}
         ${w.meaning?`<span class="text-slate-400">${escapeHtml(w.meaning)}</span>`:''}
-        ${playButton(w.word, 'xs', code)}
+        ${playButton(w.word, 'xs', g.lang)}
       </span>`;
     }).join('');
     return `<div class="flex items-baseline gap-1.5 flex-wrap">
@@ -1221,7 +1231,7 @@ const LANG_META = {
   '西班牙语':   { code:'es-ES', abbr:'西' },
 };
 function langAbbr(lang) { return LANG_META[lang]?.abbr || lang; }
-function langCode(lang) { return LANG_META[lang]?.code || 'es-ES'; }
+function langCode(lang) { return LANG_META[lang]?.code || lang; }  // 传中文名→BCP-47；传未知→原样返回（可能已是代码）
 function speakByLang(text, lang) { speak(text, langCode(lang)); }
 function getEntriesForRoot(root) {
   // 词条归属多个词根时，只要 root 在其 roots 集合内即计入（词根/词缀自身条目排最前）
@@ -1513,7 +1523,7 @@ function renderWordsList() {
   const container = document.getElementById('words-list');
   const titleEl = document.getElementById('words-title');
   const countEl = document.getElementById('words-count');
-  const tagPills = (e) => (e.tags||[]).slice(0,3).map(t => { const ch = getTagChain(t)||[t]; return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="event.stopPropagation();onTagClick('${escapeHtml(c).replace(/'/g,"\\'")}',event)">${escapeHtml(c)}</span>`).join('<span style="color:var(--border);margin:0 2px">›</span>'); }).join(' ');
+  const tagPills = (e) => (e.tags||[]).slice(0,3).map(t => { const ch = getTagChain(t)||[t]; return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="event.stopPropagation();onTagClick('${escapeHtml(c).replace(/'/g,"\\'")}',event)">${escapeHtml(c)}</span>`).join('<span class="text-white/50 mx-0.5">▸</span>'); }).join('<span class="text-slate-600 mx-1">·</span>');
   const badges = (e) => [e.pos?`<span class="text-[9px] px-1 rounded ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:'', (e.gender&&e.pos!=='动词'&&e.pos!=='副词'&&!isRootEntry(e))?`<span class="text-[9px] px-1 rounded font-bold ${genderBadge(e.gender)}">${genderLabel(e.gender)}</span>`:''].filter(Boolean).join(' ');
   const cardHtml = (e) => {
     const active = state.selectedEntryId === e.id ? 'active' : '';
@@ -1600,7 +1610,7 @@ function renderDetail() {
   if (!state.selectedEntryId) { panel.innerHTML = emptyHint('← 选择一个词条','查看词根拆解、拉丁语源、词族与同源词；或单击左侧词根看词族总览'); return; }
   const e = state.entries.find(x => x.id === state.selectedEntryId);
   if (!e) { panel.innerHTML = emptyHint('词条不存在',''); return; }
-  const tagPills = (e.tags||[]).map(t => { const ch = getTagChain(t)||[t]; const tip = ch.join(' › '); return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="goToTag('${escapeHtml(c).replace(/'/g,"\\'")}',event)" title="${escapeHtml(tip)}">${escapeHtml(c)}</span>`).join('<span style="color:var(--border);margin:0 2px">›</span>'); }).join(' ');
+  const tagPills = (e.tags||[]).map(t => { const ch = getTagChain(t)||[t]; const tip = ch.join(' › '); return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="goToTag('${escapeHtml(c).replace(/'/g,"\\'")}',event)" title="${escapeHtml(tip)}">${escapeHtml(c)}</span>`).join('<span class="text-white/50 mx-0.5">▸</span>'); }).join('<span class="text-slate-600 mx-1">·</span>');
   // 发音区
   const pronHtml = (e.ipa || e.pronNote) ? `<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">发音 Pronunciación</div>${e.ipa?`<div class="text-[15px] text-[#7dd3fc] font-mono mb-1">${escapeHtml(e.ipa)}</div>`:''}${e.pronNote?`<div class="text-[12px] text-slate-400 leading-relaxed">${escapeHtml(e.pronNote)}</div>`:''}</div>` : '';
   // 形态拆解可视化
@@ -1716,7 +1726,7 @@ function renderMorphology(breakdown) {
     const cls = morph.startsWith('-') ? 'morph-suffix'
              : (AFFIX_PREFIXES.has(morph.toLowerCase()) ? 'morph-prefix' : 'morph-root');
     const safe = escapeHtml(morph).replace(/'/g,"\\'");
-    return `<span class="morpheme ${cls}" style="cursor:pointer" onclick="jumpToMorpheme('${safe}')" title="点击查看 ${escapeHtml(morph)} 的词根/词缀详情">${escapeHtml(morph)}</span>${gloss?`<span class="text-[10px] text-slate-500 mx-1">${escapeHtml(gloss)}</span>`:''}`;
+    return `<span class="morpheme ${cls}" style="cursor:pointer" onclick="jumpToMorpheme('${safe}')" title="点击查看 ${escapeHtml(morph)} 的词根/词缀详情">${escapeHtml(morph)}</span>${gloss?`<span class="text-[11px] text-slate-300 mx-1">${escapeHtml(gloss)}</span>`:''}`;
   }).join('<span class="text-slate-600 mx-1">+</span>');
 }
 // 点击形态拆解的语素 → 跳转到对应词根/词缀（高亮，不筛选）
@@ -1817,7 +1827,11 @@ function renderReference() {}  // 预留
 // RENDER 主入口
 // =========================================================================
 function render() { updateStats(); renderLetterGrid(); renderRootsList(); renderWordsList(); renderDetail(); renderTagCloud(); updateNavBackBtn(); }
-function updateNavBackBtn() { const b=document.getElementById('nav-back-btn'); if(b){ b.classList.toggle('opacity-30', _navHistory.length===0); b.classList.toggle('pointer-events-none', _navHistory.length===0); } }
+function updateNavBackBtn() {
+  const b=document.getElementById('nav-back-btn'); const f=document.getElementById('nav-fwd-btn');
+  if(b){ b.classList.toggle('opacity-30', _navHistory.length===0); b.classList.toggle('pointer-events-none', _navHistory.length===0); }
+  if(f){ f.classList.toggle('opacity-30', _navForward.length===0); f.classList.toggle('pointer-events-none', _navForward.length===0); }
+}
 function scrollToActiveItems() { setTimeout(()=>{ const w=document.querySelector('#words-list .word-item.active'); const r=document.querySelector('.root-item.active'); if(w)w.scrollIntoView({block:'nearest',behavior:'smooth'}); if(r)r.scrollIntoView({block:'nearest',behavior:'smooth'}); },50); }
 
 // =========================================================================
@@ -2157,7 +2171,8 @@ function renderTagTree() {
   const nodeHtml = (tag, depth) => {
     const kids = getTagChildren(tag); const isExp = tagBrowserState.expanded.has(tag); const isSel = tagBrowserState.selectedTag===tag; const cnt = getTagCount(tag);
     const arrow = kids.length ? `<span class="inline-block w-4 text-[#34d399]">${isExp?'▾':'▸'}</span>` : '<span class="inline-block w-4"></span>';
-    return `<div class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer ${isSel?'bg-[#34d399]/15 text-[#6ee7b7]':'hover:bg-white/5 text-slate-300'}" style="margin-left:${depth*16}px" onclick="${kids.length?`toggleTagExpand('${escapeHtml(tag).replace(/'/g,"\\'")}')`:`selectTagInBrowser('${escapeHtml(tag).replace(/'/g,"\\'")}')`}">${arrow}<span class="font-medium">${escapeHtml(tag)}</span><span class="ml-auto text-[10px] text-slate-500">${cnt}</span></div>${isExp?kids.map(k=>nodeHtml(k,depth+1)).join(''):''}`;
+    const pcicMark = (depth===0 && TAG_TAXONOMY_ROOTS.includes(tag)) ? ' <span class="text-[#38bdf8] text-[8px]">🔷</span>' : '';
+    return `<div class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer ${isSel?'bg-[#34d399]/15 text-[#6ee7b7]':'hover:bg-white/5 text-slate-300'}" style="margin-left:${depth*16}px" onclick="${kids.length?`toggleTagExpand('${escapeHtml(tag).replace(/'/g,"\\'")}')`:`selectTagInBrowser('${escapeHtml(tag).replace(/'/g,"\\'")}')`}">${arrow}<span class="font-medium">${escapeHtml(tag)}${pcicMark}</span><span class="ml-auto text-[10px] text-slate-500">${cnt}</span></div>${isExp?kids.map(k=>nodeHtml(k,depth+1)).join(''):''}`;
   };
   const orphan = roots.filter(t=>!state.tagGraph[t]); const grouped = roots.filter(t=>state.tagGraph[t]);
   let html = grouped.map(t=>nodeHtml(t,0)).join('');
@@ -2207,16 +2222,21 @@ const COMPLETION_FIELD_META = {
   frequency:{ label:'词频', group:'词法', type:'enum' },
 };
 const COMPLETION_CONFIG_KEY = 'spanish_etymology_completion_v1';
-let completionConfig = { fields:['meaning','breakdown','analysis','etymology','englishCognate'], onlyIfEmpty:true };
+let completionConfig = { fields:['meaning','breakdown','analysis','etymology','englishCognate'], onlyIfEmpty:true, groupOnlyIfEmpty: { '内容':true, '分类':true, '词法':true } };
 function loadCompletionConfig() { try { const r=localStorage.getItem(COMPLETION_CONFIG_KEY); if(r){const s=JSON.parse(r); if(Array.isArray(s.fields)) completionConfig.fields=s.fields.filter(f=>COMPLETION_FIELD_META[f]); if(typeof s.onlyIfEmpty==='boolean') completionConfig.onlyIfEmpty=s.onlyIfEmpty;}}catch{} }
 function saveCompletionConfig() { localStorage.setItem(COMPLETION_CONFIG_KEY, JSON.stringify(completionConfig)); }
 function isFieldEmpty(entry, field) { if(field==='emoji') return !_startsWithEmoji(entry.meaning||''); const v=entry[field]; if(v==null)return true; if(Array.isArray(v))return v.length===0; if(typeof v==='boolean')return v===false; return String(v).trim()===''; }
+function _isCompletionNeeded(entry, field) {
+  const group = COMPLETION_FIELD_META[field]?.group || '';
+  if (!(completionConfig.groupOnlyIfEmpty[group] ?? true)) return true;  // this group = overwrite → always needs
+  return isFieldEmpty(entry, field);
+}
 function findIncompleteEntries() {
   const all = _singleEntryId ? [state.entries.find(x=>x.id===_singleEntryId)].filter(Boolean) : state.entries.slice();
   const byTab = _filterCompletionTargets(all);
   if (_singleEntryId && !completionConfig.onlyIfEmpty) return byTab;
   if (!completionConfig.onlyIfEmpty) return byTab;
-  return byTab.filter(e => completionConfig.fields.some(f => isFieldEmpty(e,f)));
+  return byTab.filter(e => completionConfig.fields.some(f => _isCompletionNeeded(e,f)));
 }
 function renderCompletionFieldPicker() {
   const grid=document.getElementById('comp-field-grid'); if(!grid)return;
@@ -2225,8 +2245,11 @@ function renderCompletionFieldPicker() {
     const fieldsInGroup = Object.entries(COMPLETION_FIELD_META).filter(([_,m])=>m.group===g);
     const groupKeys = fieldsInGroup.map(([k])=>k);
     const allChecked = groupKeys.every(k => completionConfig.fields.includes(k));
-    html += `<div class="col-span-full flex items-center justify-between mt-1">
-      <span class="text-[10px] text-slate-500 uppercase tracking-wider">${g}</span>
+    const groupOnlyEmp = completionConfig.groupOnlyIfEmpty[g] ?? true;
+    html += `<div class="col-span-full flex items-center justify-between mt-1.5">
+      <span class="text-[10px] text-slate-500 uppercase tracking-wider flex items-center gap-2">${g}
+        <label class="flex items-center gap-0.5 cursor-pointer text-[9px] text-slate-400"><input type="checkbox" class="w-2.5 h-2.5 accent-[#34d399]" ${groupOnlyEmp?'checked':''} onchange="toggleGroupOnlyIfEmpty('${g}',this.checked)"><span>仅空</span></label>
+      </span>
       <div class="flex gap-2 text-[10px]">
         <button onclick="setGroupFields('${g}',true)" class="${allChecked?'text-[#7dd3fc]':'text-slate-500'} hover:underline">全选</button>
         <button onclick="setGroupFields('${g}',false)" class="${!allChecked&&groupKeys.some(k=>completionConfig.fields.includes(k))?'text-[#fda4af]':'text-slate-500'} hover:underline">全不选</button>
@@ -2235,7 +2258,8 @@ function renderCompletionFieldPicker() {
     for (const [k,m] of fieldsInGroup) { const checked=completionConfig.fields.includes(k)?'checked':''; html += `<label class="flex items-center gap-1 cursor-pointer px-1.5 py-1 rounded border border-white/5 hover:border-[#a855f7]/30 ${checked?'bg-[#a855f7]/5':''}"><input type="checkbox" class="w-3 h-3 accent-[#a855f7]" ${checked} onchange="toggleCompletionField('${k}',this.checked)"><span class="text-slate-300">${m.label}</span></label>`; }
   }
   grid.innerHTML = html;
-  document.getElementById('comp-only-empty').checked = completionConfig.onlyIfEmpty;
+  const globalCB = document.getElementById('comp-only-empty');
+  if (globalCB) globalCB.checked = completionConfig.onlyIfEmpty;
 }
 function setGroupFields(group, on) {
   const groupKeys = Object.entries(COMPLETION_FIELD_META).filter(([_,m])=>m.group===group).map(([k])=>k);
@@ -2245,6 +2269,10 @@ function setGroupFields(group, on) {
 }
 function toggleCompletionField(f, on) { if(on&&!completionConfig.fields.includes(f)) completionConfig.fields.push(f); if(!on) completionConfig.fields=completionConfig.fields.filter(x=>x!==f); saveCompletionConfig(); refreshAIScanResult(); }
 function toggleCompletionOnlyIfEmpty(on) { completionConfig.onlyIfEmpty=on; saveCompletionConfig(); }
+function toggleGroupOnlyIfEmpty(group, on) {
+  completionConfig.groupOnlyIfEmpty[group] = on;
+  saveCompletionConfig(); refreshAIScanResult();
+}
 function refreshAIScanResult() {
   const incomplete=findIncompleteEntries(); const panel=document.getElementById('ai-scan-result'); const runBtn=document.getElementById('ai-run-btn');
   const banner = _singleEntryId ? (()=>{const e=state.entries.find(x=>x.id===_singleEntryId);return e?`<div class="mb-3 px-3 py-2 rounded-lg bg-[#a855f7]/10 border border-[#a855f7]/30 text-xs text-[#d8b4fe]">🎯 单词条补全：<span class="font-bold text-white">${escapeHtml(e.word)}</span></div>`:'';})():'';
@@ -2282,7 +2310,7 @@ function buildAIEntryPrompt(input, existingTags) {
 - analysis: 词根语义流转分析 50-150 字
 - etymology: 词源追溯，展示 拉丁语 → 古西班牙语 → 现代形式，标注音变（f→h、ĕ→ie、-ct→ch 等）
 - englishCognate: 英语同源词（如 gelatin/gelato）
-- cognates: 数组 [{lang, word, ipa, meaning}]，每个同源词都要给发音和中文释义，如 [{lang:'意大利语',word:'gelato',ipa:'/dʒeˈlaːto/',meaning:'冰淇淋'}]
+- cognates: 数组 [{lang, word, ipa, meaning}]，**每个同源词（含英语）都必须带 IPA 发音和中文释义**。英语同源词同时填到 englishCognate 做速览。如 [{lang:'英语',word:'congeal',ipa:'/kənˈdʒiːl/',meaning:'凝结'},{lang:'意大利语',word:'gelato',ipa:'/dʒeˈlaːto/',meaning:'冰淇淋'}]
 - etymologyTier: 词源层次（通俗拉丁语继承词/古典拉丁语借词/希腊语来源/阿拉伯语来源/日耳曼语来源/法语借词/英语借词/美洲原住民语言/内部新造词）
 - examples: 数组，每条 "西语 — 中文"
 - related: 同根词数组
@@ -2347,7 +2375,22 @@ ${fieldListFull}
 【输出】仅严格 JSON：{"results":[${JSON.stringify(sampleObj)}]}
 每个 word 必须与输入对应。`;
 }
-function extractJSON(text) { let t=text.trim().replace(/^```(?:json)?\s*/i,'').replace(/\s*```\s*$/,''); const s=t.indexOf('{'), e=t.lastIndexOf('}'); if(s<0||e<0) throw new Error('响应未找到 JSON'); return JSON.parse(t.slice(s,e+1)); }
+function extractJSON(text) {
+  let t = text.trim();
+  // 去除 markdown 代码块（多层可能的围栏）
+  t = t.replace(/```[\w]*\s*/gi,'').replace(/```/g,'');
+  // 若代码块包裹了 {…}，取最外层 JSON
+  const s = t.indexOf('{'), e = t.lastIndexOf('}');
+  if (s < 0 || e < 0) throw new Error('响应未找到 JSON');
+  t = t.slice(s, e + 1);
+  // 修复 LLM 常见 JSON 格式错误：尾随逗号、注释
+  t = t.replace(/,\s*([}\]])/g, '$1')           // 尾随逗号 ",]" / ",}"
+         .replace(/\/\/[^\n]*/g, '')            // 单行注释
+         .replace(/\/\*[\s\S]*?\*\//g, '');     // 块注释
+  // 修复数组最后元素多余的逗号（再次保险）
+  t = t.replace(/,\s*\]/g, ']').replace(/,\s*\}/g, '}');
+  return JSON.parse(t);
+}
 
 // =========================================================================
 // AI 新词条
@@ -2416,13 +2459,27 @@ function _renderAIAddPreview(entry) {
 }
 function applyAIAddEntry() {
   if (!_aiAddLastEntry) return;
+  // #9 自动创建缺失的词根/词缀条目
+  [(_aiAddLastEntry.root||''), ...(_aiAddLastEntry.roots||[])].filter(Boolean).forEach(r => { if (!findRootEntry(r)) _createRootStub(r); });
   state.entries.push(_aiAddLastEntry);
-  save(); render();
-  toast(`✓ 已添加：${_aiAddLastEntry.word}`,'success');
-  state.selectedEntryId = _aiAddLastEntry.id;
-  state.filter.letter = getLetter(_aiAddLastEntry.word);
+  save();
+  // #1：添加后定位到新词条——清空筛选避免看不到，高亮词根+词条，滚动到位
+  state.filter.letter = null;
+  state.filter.search = '';
   state.highlightRoot = getRootKey(_aiAddLastEntry);
-  closeAIAddModal(); render();
+  state.selectedEntryId = _aiAddLastEntry.id;
+  tagCloudState.selectedTag = null;
+  tagCloudState.selectedSubTag = null;
+  closeAIAddModal();
+  render();
+  toast(`✓ 已添加：${_aiAddLastEntry.word}`,'success');
+  // 延迟滚动：等 DOM 渲染完成后定位
+  setTimeout(() => {
+    const w = document.querySelector('#words-list .word-item.active');
+    if (w) w.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    const r = document.querySelector('.root-item.active');
+    if (r) r.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }, 150);
 }
 
 // =========================================================================
@@ -2797,6 +2854,8 @@ document.addEventListener('keydown', (e) => {
   else if (e.key.toLowerCase() === 'n') { openAddModal(); }
   else if (e.shiftKey && e.key.toLowerCase() === 'a') { e.preventDefault(); openAIAddModal(); }
   else if (e.key.toLowerCase() === 'h') { document.getElementById('app-header').classList.toggle('header-collapsed'); }
+  else if (e.altKey && e.key === 'ArrowLeft') { e.preventDefault(); navBack(); }
+  else if (e.altKey && e.key === 'ArrowRight') { e.preventDefault(); navForward(); }
 });
 load();
 loadSettings();
