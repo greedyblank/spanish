@@ -94,6 +94,8 @@
   .morph-root { background:rgba(56,189,248,0.15); color:#7dd3fc; border:1px solid rgba(56,189,248,0.3); font-size:1.05em; }
   .morph-suffix { background:rgba(52,211,153,0.15); color:#6ee7b7; border:1px solid rgba(52,211,153,0.3); }
   .morph-link { background:rgba(148,163,184,0.1); color:#cbd5e1; border:1px solid rgba(148,163,184,0.2); font-size:0.85em; }
+  .play-btn { line-height:1; padding-left:1px; }
+  .play-btn:active { transform:scale(0.9); }
   .toast { animation: slideIn 0.3s ease-out; }
   @keyframes slideIn { from { transform:translateX(100%); opacity:0;} to {transform:translateX(0); opacity:1;} }
   kbd { display:inline-block; padding:1px 6px; background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.15); border-radius:4px; font-family:monospace; font-size:11px; }
@@ -181,6 +183,7 @@
       <div class="flex items-center justify-between mb-3">
         <h3 class="text-sm font-semibold text-slate-300"><span id="words-title">词条</span><span id="words-count" class="text-xs text-slate-500 ml-1"></span></h3>
         <div class="flex items-center gap-1">
+          <button id="toggle-root-entries-btn" onclick="toggleShowRootEntries()" class="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition" title="显示/隐藏词根词缀条目">词根条目</button>
           <button onclick="clearTagFilter()" class="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition" title="清除标签筛选">清签</button>
           <button onclick="clearAllFilters()" class="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5 transition" title="清除全部筛选">清搜</button>
         </div>
@@ -508,6 +511,7 @@ let state = {
   tagGraphUpdatedAt: 0,
   filter: { letter: null, root: null, search: '' },
   rootTypeFilter: 'all',   // #9: all | root | affix
+  showRootEntries: false,  // 主列表是否显示词根/词缀条目（默认隐藏）
   highlightRoot: null,
   selectedEntryId: null,
   editingEntryId: null,
@@ -857,11 +861,14 @@ function updateAIButton() { const b = document.getElementById('ai-btn'); if (b) 
 // 字母/词根工具
 // =========================================================================
 function getLetter(word) { return word ? word.charAt(0).toUpperCase() : '?'; }
-function getRootKey(entry) { return entry.root || (entry.word ? entry.word.slice(0,3) : ''); }
+const ORPHAN_KEY = '⌀ 暂无词根挂靠';   // 删词根后仅挂靠它的词汇的临时归属（#4）
+function getRootKey(entry) { if (entry.rootless) return ORPHAN_KEY; return entry.root || (entry.word ? entry.word.slice(0,3) : ''); }
 // 一个词条可归属多个词根/词缀：主词根 + 附加 roots[]（#2 多词根模型）
 function getRootKeys(entry) {
-  const keys = [getRootKey(entry), ...((entry.roots)||[])].map(s=>String(s||'').trim()).filter(Boolean);
-  return [...new Set(keys)];
+  if (entry.rootless) return [ORPHAN_KEY];
+  const keys = [entry.root, ...((entry.roots)||[])].map(s=>String(s||'').trim()).filter(Boolean);
+  if (keys.length) return [...new Set(keys)];
+  return entry.word ? [entry.word.slice(0,3)] : [];
 }
 // 已知前缀集合（模块级，供词缀分类 + 形态拆解上色共用）
 const AFFIX_PREFIXES = new Set(['re-','con-','co-','com-','de-','pre-','en-','in-','ex-','dis-','sub-','trans-','a-','ab-','ad-','pro-','sobre-','entre-','des-','inter-','anti-','auto-','super-','extra-','contra-']);
@@ -874,6 +881,40 @@ function classifyRoot(root) {
   const self = state.entries.find(e => e.word === root);
   if (self && (self.pos === '前缀' || self.pos === '后缀')) return 'affix';
   return 'root';                                            // 其余（hel- / am- / struct-）为词根
+}
+// 该词条本身是否是「词根/词缀条目」（pos 为 词根/前缀/后缀）。主列表默认隐藏这类
+function isRootEntry(e) { return e && (e.pos === '词根' || e.pos === '前缀' || e.pos === '后缀'); }
+// 查找某词根/词缀字符串对应的「真实条目」（word===root 且是词根条目）
+function findRootEntry(root) { return state.entries.find(e => e.word === root && isRootEntry(e)) || state.entries.find(e => e.word === root); }
+// 把英语同源串（"gelatin / gelato"）+ cognates 数组统一成按语言分组的结构，英语优先
+const _LANG_ORDER = ['英语','拉丁语','意大利语','法语','葡萄牙语','加泰罗尼亚语','罗马尼亚语','德语','希腊语','阿拉伯语'];
+function groupedCognates(e) {
+  const byLang = new Map();
+  const push = (lang, word, ipa, meaning) => {
+    if (!lang || !word) return;
+    if (!byLang.has(lang)) byLang.set(lang, []);
+    const arr = byLang.get(lang);
+    if (!arr.some(x => x.word === word)) arr.push({ word, ipa: ipa||'', meaning: meaning||'' });
+  };
+  (e.cognates||[]).forEach(c => push(c.lang, c.word, c.ipa, c.meaning));
+  // englishCognate 斜杠串兜底并入英语（保留一眼总览，不带发音）
+  if (e.englishCognate) e.englishCognate.split(/[\/,、]/).map(s=>s.trim()).filter(Boolean).forEach(w => push('英语', w));
+  const langs = [...byLang.keys()].sort((a,b) => {
+    const ia = _LANG_ORDER.indexOf(a), ib = _LANG_ORDER.indexOf(b);
+    return (ia<0?99:ia) - (ib<0?99:ib) || a.localeCompare(b);
+  });
+  return langs.map(lang => ({ lang, words: byLang.get(lang) }));
+}
+// 渲染「跨语言同源」区（英语斜杠总览串 + 各语言逐条带发音/释义）
+function renderCognatesBlock(e) {
+  const groups = groupedCognates(e);
+  if (!groups.length && !e.englishCognate) return '';
+  const rows = groups.map(g => {
+    const chips = g.words.map(w => `<span class="text-[11px]">${escapeHtml(w.word)}${w.ipa?` <span class="text-slate-500 font-mono">${escapeHtml(w.ipa)}</span>`:''}${w.meaning?` <span class="text-slate-400">${escapeHtml(w.meaning)}</span>`:''}</span>`).join('<span class="text-slate-600 mx-1">·</span>');
+    return `<div class="flex gap-2 items-baseline"><span class="text-[10px] px-1.5 py-0.5 rounded bg-[#38bdf8]/10 border border-[#38bdf8]/30 text-[#7dd3fc] shrink-0">${escapeHtml(g.lang)}</span><div class="flex-1 text-slate-300 leading-relaxed">${chips}</div></div>`;
+  }).join('');
+  const glance = e.englishCognate ? `<div class="text-[11px] text-[#7dd3fc] mb-1.5">英语: <span class="italic">${escapeHtml(e.englishCognate)}</span></div>` : '';
+  return `<div class="mb-4"><div class="text-[10px] text-[#7dd3fc] uppercase tracking-wider mb-1.5">🌐 跨语言同源 Cognados</div>${glance}<div class="space-y-1">${rows}</div></div>`;
 }
 function escapeHtml(s) { return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 // 词性徽章配色（参考韩语 posBadgeClass）
@@ -892,6 +933,12 @@ function genderBadge(gender) {
 }
 // 阴阳性中文标签（#10：所有标签中文化）。数据仍存 m/f，显示为 阳/阴
 function genderLabel(gender) { return gender === 'm' ? '阳' : gender === 'f' ? '阴' : gender||''; }
+// 圆形播放按钮（#1）：三角外套圆圈。size: 'sm' 列表 / 'lg' 详情
+function playButton(word, size='sm') {
+  const safe = escapeHtml(word).replace(/'/g,"\\'");
+  const dim = size==='lg' ? 'w-6 h-6 text-[11px]' : 'w-5 h-5 text-[9px]';
+  return `<button onclick="event.stopPropagation();speak('${safe}')" class="play-btn ${dim} inline-flex items-center justify-center rounded-full border border-[#34d399]/50 text-[#6ee7b7] hover:bg-[#34d399]/15 hover:border-[#34d399] transition shrink-0" title="朗读 ${safe}">▶</button>`;
+}
 function getEntriesForRoot(root) {
   // 词条归属多个词根时，只要 root 在其 roots 集合内即计入（词根/词缀自身条目排最前）
   return state.entries.filter(e => getRootKeys(e).includes(root)).sort((a,b) => {
@@ -1090,8 +1137,9 @@ function renderRootsList() {
   const buildGrouped = (entriesArr) => {
     const rootMap = new Map();
     entriesArr.forEach(e => getRootKeys(e).forEach(r => {
-      if (!passType(r)) return;
-      if (!rootMap.has(r)) rootMap.set(r, { c:0, l:getLetter(r.replace(/^-/,'')) });
+      if (r !== ORPHAN_KEY && !passType(r)) return;
+      const letter = r === ORPHAN_KEY ? '⌀' : getLetter(r.replace(/^-/,''));
+      if (!rootMap.has(r)) rootMap.set(r, { c:0, l:letter });
       rootMap.get(r).c++;
     }));
     const grouped = {};
@@ -1135,11 +1183,19 @@ function setRootTypeFilter(t) {
   });
   renderRootsList();
 }
+// 主列表显示/隐藏词根词缀条目
+function toggleShowRootEntries() {
+  state.showRootEntries = !state.showRootEntries;
+  const b = document.getElementById('toggle-root-entries-btn');
+  if (b) b.className = `text-[10px] px-1.5 py-0.5 rounded border transition ${state.showRootEntries?'text-[#7dd3fc] bg-[#38bdf8]/15 border-[#38bdf8]/30':'border-white/10 text-slate-400 hover:text-slate-200 hover:bg-white/5'}`;
+  renderWordsList();
+}
 function getRootMeta(root) {
-  // 聚合该词根下的元信息（优先取词根/词缀自身条目，再取第一个有 rootMeaning 的）
+  // 聚合该词根下的元信息（优先取词根/词缀自身条目的 rootMeaning，其次派生词的）
+  const self = findRootEntry(root);
   const entries = getEntriesForRoot(root);
-  const e0 = entries.find(e => e.word === root && e.rootMeaning) || entries.find(e => e.rootMeaning) || entries[0] || {};
-  return { rootMeaning: e0.rootMeaning||'', latinOrigin: e0.latinOrigin||'', count: entries.length, type: classifyRoot(root) };
+  const e0 = (self && self.rootMeaning) ? self : (entries.find(e => e.rootMeaning) || self || entries[0] || {});
+  return { rootMeaning: e0.rootMeaning||'', latinOrigin: (self&&self.latinOrigin)||e0.latinOrigin||'', count: entries.length, type: classifyRoot(root), self };
 }
 function rootItemHtml(root, count, isActive) {
   const safe = escapeHtml(root).replace(/'/g,"\\'");
@@ -1164,7 +1220,7 @@ function renderWordsList() {
   const titleEl = document.getElementById('words-title');
   const countEl = document.getElementById('words-count');
   const tagPills = (e) => (e.tags||[]).slice(0,3).map(t => { const ch = getTagChain(t)||[t]; return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="event.stopPropagation();onTagClick('${escapeHtml(c).replace(/'/g,"\\'")}',event)">${escapeHtml(c)}</span>`).join('<span style="color:var(--border);margin:0 2px">›</span>'); }).join(' ');
-  const badges = (e) => [e.pos?`<span class="text-[9px] px-1 rounded ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:'', (e.gender&&e.pos!=='动词'&&e.pos!=='副词'&&e.pos!=='前缀'&&e.pos!=='后缀'&&e.pos!=='词根')?`<span class="text-[9px] px-1 rounded font-bold ${genderBadge(e.gender)}">${genderLabel(e.gender)}</span>`:''].filter(Boolean).join(' ');
+  const badges = (e) => [e.pos?`<span class="text-[9px] px-1 rounded ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:'', (e.gender&&e.pos!=='动词'&&e.pos!=='副词'&&!isRootEntry(e))?`<span class="text-[9px] px-1 rounded font-bold ${genderBadge(e.gender)}">${genderLabel(e.gender)}</span>`:''].filter(Boolean).join(' ');
   const cardHtml = (e) => {
     const active = state.selectedEntryId === e.id ? 'active' : '';
     const meta = [];
@@ -1176,10 +1232,11 @@ function renderWordsList() {
       <div class="flex items-baseline justify-between mb-1 gap-2">
         <div class="flex items-baseline gap-2 min-w-0 flex-wrap">
           <span class="text-base font-bold text-white">${escapeHtml(e.word)}</span>
+          ${e.ipa?`<span class="text-[11px] text-[#7dd3fc] font-mono">${escapeHtml(e.ipa)}</span>`:''}
+          ${playButton(e.word,'sm')}
           ${badges(e)}
           ${e.frequency?`<span class="text-[9px] text-slate-500">${{高频:'高频',中频:'中频',低频:'低频'}[e.frequency]||e.frequency}</span>`:''}
         </div>
-        <button onclick="event.stopPropagation();speak('${escapeHtml(e.word)}')" class="text-[#6ee7b7] text-xs" title="朗读">▶</button>
       </div>
       <div class="text-[11px] text-slate-300">· ${escapeHtml((e.meaning||'').trim())}</div>
       ${meta.length?`<div class="text-[9px] text-slate-500 mt-1 flex gap-2 flex-wrap">${meta.join(' · ')}</div>`:''}
@@ -1204,11 +1261,13 @@ function renderWordsList() {
   if (countEl) countEl.textContent = `${list.length} 条`;
   container.innerHTML = list.length ? list.map(cardHtml).join('') : emptyHint('无匹配词条','调整字母/标签筛选');
 }
-// 三系统并行求交：搜索 ∩ 字母 ∩ 标签。词根点选是高亮而非过滤，故不参与（#8）
+// 三系统并行求交：搜索 ∩ 字母 ∩ 标签。词根为高亮而非过滤，不参与。
+// 词根/词缀条目默认从主列表隐藏（showRootEntries 切换）；孤儿视图单独处理
 function getVisibleEntries() {
   let list = state.filter.search.trim() ? (getFilteredBySearch()||[]) : state.entries.slice();
   if (state.filter.letter) list = list.filter(e => getLetter(e.word) === state.filter.letter);
   if (tagCloudState.selectedTag) { const sub = new Set(getTagSubtree(tagCloudState.selectedTag)); list = list.filter(e => (e.tags||[]).some(t => sub.has(t))); }
+  if (!state.showRootEntries && !state.filter.search.trim()) list = list.filter(e => !isRootEntry(e));  // 搜索时不隐藏，方便找词缀
   return list.sort((a,b)=>(a.word||'').localeCompare(b.word||'','es'));
 }
 
@@ -1227,7 +1286,6 @@ function renderDetail() {
   const pronHtml = (e.ipa || e.pronNote) ? `<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">发音 Pronunciación</div>${e.ipa?`<div class="text-[15px] text-[#7dd3fc] font-mono mb-1">${escapeHtml(e.ipa)}</div>`:''}${e.pronNote?`<div class="text-[12px] text-slate-400 leading-relaxed">${escapeHtml(e.pronNote)}</div>`:''}</div>` : '';
   // 形态拆解可视化
   const morphHtml = e.breakdown ? `<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">形态拆解 Morfología（点语素跳转）</div><div class="leading-loose">${renderMorphology(e.breakdown)}</div></div>` : '';
-  const cognateHtml = (e.cognates && e.cognates.length) ? e.cognates.map(c => `<span class="text-[11px] px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">${escapeHtml(c.lang)}: <span class="text-[#7dd3fc] italic">${escapeHtml(c.word)}</span>${c.ipa?` <span class="text-slate-500 font-mono">${escapeHtml(c.ipa)}</span>`:''}${c.meaning?` <span class="text-slate-500">${escapeHtml(c.meaning)}</span>`:''}</span>`).join(' ') : '';
   // 同根词：库内已有则显示释义+发音并可点击跳转；库外仅显示词形（#3）
   const relatedHtml = (e.related||[]).map(r => {
     const hit = state.entries.find(x => x.word === r);
@@ -1239,9 +1297,10 @@ function renderDetail() {
       <div class="mb-3">
         <div class="flex items-baseline gap-2 flex-wrap">
           <h2 class="text-[28px] font-bold text-white">${escapeHtml(e.word)}</h2>
-          ${e.gender&&e.pos!=='动词'?`<span class="text-[12px] text-slate-400">[${genderLabel(e.gender)}]</span>`:''}
-          <button onclick="speak('${escapeHtml(e.word)}')" class="text-[#6ee7b7] text-sm" title="朗读">▶</button>
-          ${e.pos?`<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#a855f7]/15 text-[#d8b4fe] border border-[#a855f7]/30">${escapeHtml(e.pos)}</span>`:''}
+          ${e.ipa?`<span class="text-[14px] text-[#7dd3fc] font-mono">${escapeHtml(e.ipa)}</span>`:''}
+          ${playButton(e.word, 'lg')}
+          ${e.pos?`<span class="text-[10px] px-1.5 py-0.5 rounded-full ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:''}
+          ${(e.gender&&e.pos!=='动词'&&e.pos!=='副词'&&!isRootEntry(e))?`<span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${genderBadge(e.gender)}">${genderLabel(e.gender)}</span>`:''}
           ${e.frequency?`<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#34d399]/15 text-[#6ee7b7] border border-[#34d399]/30">${escapeHtml(e.frequency)}</span>`:''}
           <div class="flex gap-1 ml-auto shrink-0">
             <button onclick="openAIModal('${e.id}')" class="px-2 py-1 text-[10px] rounded-md bg-gradient-to-r from-[#a855f7]/20 to-[#ec4899]/20 border border-[#a855f7]/40 text-[#d8b4fe]" title="只补全这一个词条">✨ AI补全</button>
@@ -1265,7 +1324,7 @@ function renderDetail() {
       ${morphHtml}
       ${e.analysis?`<div class="mb-4"><div class="text-[10px] text-[#d8b4fe] uppercase tracking-wider mb-1">🎯 词根语义分析</div><div class="text-[13px] text-slate-100 leading-relaxed bg-gradient-to-br from-[#a855f7]/10 to-[#ec4899]/5 px-3 py-2 rounded-lg border border-[#a855f7]/20 whitespace-pre-wrap">${escapeHtml(e.analysis)}</div></div>`:''}
       ${e.etymology?`<div class="mb-4"><div class="text-[10px] text-[#fbbf24] uppercase tracking-wider mb-1">📜 词源追溯 Etimología</div><div class="text-[13px] text-slate-200 leading-relaxed bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15 whitespace-pre-wrap">${escapeHtml(e.etymology)}</div></div>`:''}
-      ${(e.englishCognate||cognateHtml)?`<div class="mb-4"><div class="text-[10px] text-[#7dd3fc] uppercase tracking-wider mb-1">🌐 跨语言同源 Cognados</div><div class="flex flex-wrap gap-1.5 items-center">${e.englishCognate?`<span class="text-[11px] px-2 py-0.5 rounded bg-[#38bdf8]/10 border border-[#38bdf8]/30 text-[#7dd3fc]">英语: <span class="italic">${escapeHtml(e.englishCognate)}</span></span>`:''}${cognateHtml}</div></div>`:''}
+      ${renderCognatesBlock(e)}
       ${(e.examples||[]).length?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">💬 例句 Ejemplos</div><div class="space-y-1">${e.examples.map(ex=>`<div class="text-[13px] pl-2 border-l-2 border-[#34d399]/40"><span class="text-slate-100">${escapeHtml(ex)}</span></div>`).join('')}</div></div>`:''}
       ${(e.related||[]).length?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">🔗 同根词 Familia（库内可点击）</div><div class="flex flex-wrap gap-1.5">${relatedHtml}</div></div>`:''}
       ${tagPills?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">标签 Tags</div><div>${tagPills}</div></div>`:''}
@@ -1273,36 +1332,59 @@ function renderDetail() {
     </div>`;
 }
 // 词根详情面板（西语特色：词根本身是独立语言单位，有释义/拉丁源/词族/cognate）
+// #3：词根/词缀的释义·分析·词源·同源词一律取「词根自身条目」(self)，绝不借用派生词
 function renderRootDetail(panel, root) {
   const entries = getEntriesForRoot(root);   // 多词根聚合 + 词缀自身条目排最前
-  if (!entries.length) { panel.innerHTML = emptyHint('该词源下暂无词条',''); return; }
+  // 孤儿分组特殊视图（#4）
+  if (root === ORPHAN_KEY) {
+    panel.innerHTML = `<div class="fade-in">
+      <div class="mb-3 flex items-baseline gap-2 flex-wrap"><h2 class="text-[22px] font-bold text-white">${escapeHtml(ORPHAN_KEY)}</h2><span class="text-xs text-slate-500">${entries.length} 个词</span>
+        <button onclick="reattachOrphansWithAI()" class="ml-auto px-2.5 py-1 text-[10px] rounded-md bg-gradient-to-r from-[#a855f7]/20 to-[#ec4899]/20 border border-[#a855f7]/40 text-[#d8b4fe]">🔗 AI 重新挂靠</button></div>
+      <div class="text-[11px] text-slate-400 mb-3">这些词的词根被删除后暂无挂靠。点「AI 重新挂靠」让 AI 判断应归入哪个词根；无合适现有词根时会提议新建（需你勾选确认）。</div>
+      <div class="space-y-1.5">${entries.map(e=>`<div class="cursor-pointer px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-[#34d399]/30" onclick="selectEntry('${e.id}')"><div class="flex items-baseline gap-2 flex-wrap"><span class="font-bold text-white text-[15px]">${escapeHtml(e.word)}</span>${e.ipa?`<span class="text-[10px] text-[#7dd3fc] font-mono">${escapeHtml(e.ipa)}</span>`:''}${e.pos?`<span class="text-[9px] px-1 rounded ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:''}</div><div class="text-[11px] text-slate-400 truncate">${escapeHtml((e.meaning||'').slice(0,40))}</div></div>`).join('')||'<div class="text-slate-500 text-xs italic">暂无孤儿词</div>'}</div>
+    </div>`;
+    return;
+  }
   const meta = getRootMeta(root);
   const isAffix = meta.type === 'affix';
   const typeLabel = isAffix ? (root.startsWith('-') ? '后缀 sufijo' : '前缀 prefijo') : '词根 raíz';
-  // 聚合 cognates / 拉丁源 / 词源（取代表值）
-  const e0 = entries.find(e => e.etymology) || entries[0];
-  const cognates = (e0 && e0.cognates) || [];
-  const latinOrigin = meta.latinOrigin || (e0 && e0.latinOrigin) || '';
-  const englishCognate = (e0 && e0.englishCognate) || '';
-  // 收集该词根下所有词条的语义标签
+  const self = meta.self;   // 词根/词缀本身的条目（可能为 undefined）
+  const derived = entries.filter(e => e.word !== root);   // 派生词族（不含自身）
+  const latinOrigin = meta.latinOrigin;
+  // 收集派生词族的语义标签（聚合展示）
   const tagSet = new Set();
   entries.forEach(e => (e.tags||[]).forEach(t => tagSet.add(t)));
   const tagPills = [...tagSet].slice(0,8).map(t => { const ch = getTagChain(t)||[t]; return `<span class="tag-pill" onclick="onTagClick('${escapeHtml(t).replace(/'/g,"\\'")}',event)">${ch.map(escapeHtml).join(' › ')}</span>`; }).join(' ');
+  // 词根本身的操作按钮：有 self 条目才能编辑/补全/删除；没有则提供「建立词根条目」
+  const actions = self
+    ? `<div class="flex gap-1 ml-auto shrink-0">
+         <button onclick="openAIModal('${self.id}')" class="px-2 py-1 text-[10px] rounded-md bg-gradient-to-r from-[#a855f7]/20 to-[#ec4899]/20 border border-[#a855f7]/40 text-[#d8b4fe]" title="补全该${isAffix?'词缀':'词根'}自身信息">✨ AI补全</button>
+         <button onclick="editEntry('${self.id}')" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300">✎ 编辑</button>
+         <button onclick="deleteRoot('${escapeHtml(root).replace(/'/g,"\\'")}')" class="px-2 py-1 text-[10px] rounded-md bg-[#f43f5e]/10 border border-[#f43f5e]/30 text-[#fda4af]" title="删除该${isAffix?'词缀':'词根'}">✕ 删除</button>
+       </div>`
+    : `<div class="flex gap-1 ml-auto shrink-0">
+         <button onclick="createRootEntry('${escapeHtml(root).replace(/'/g,"\\'")}')" class="px-2 py-1 text-[10px] rounded-md bg-[#34d399]/15 border border-[#34d399]/40 text-[#6ee7b7]" title="为该词根建立独立条目（可编辑释义/分析/词源）">＋ 建立词根条目</button>
+         <button onclick="deleteRoot('${escapeHtml(root).replace(/'/g,"\\'")}')" class="px-2 py-1 text-[10px] rounded-md bg-[#f43f5e]/10 border border-[#f43f5e]/30 text-[#fda4af]" title="从所有词条解除该词根关联">✕ 解除</button>
+       </div>`;
   panel.innerHTML = `
     <div class="fade-in">
       <div class="mb-3">
         <div class="flex items-baseline gap-2 flex-wrap">
           <h2 class="text-[28px] font-bold text-white">${escapeHtml(root)}</h2>
+          ${self&&self.ipa?`<span class="text-[14px] text-[#7dd3fc] font-mono">${escapeHtml(self.ipa)}</span>`:''}
+          ${playButton(root.replace(/^-|-$/g,''),'lg')}
           <span class="text-[10px] px-1.5 py-0.5 rounded-full ${isAffix?'bg-[#fbbf24]/15 text-[#fde68a] border border-[#fbbf24]/30':'bg-[#38bdf8]/15 text-[#7dd3fc] border border-[#38bdf8]/30'}">${typeLabel}</span>
-          <span class="text-xs text-slate-500">${entries.length} 个同族词</span>
+          <span class="text-xs text-slate-500">${derived.length} 个派生词</span>
+          ${actions}
         </div>
+        ${!self?`<div class="text-[10px] text-[#fbbf24] mt-1">⚠ 该${isAffix?'词缀':'词根'}暂无独立条目，下方释义/分析来自派生词推断，点「建立词根条目」可编辑其固有含义</div>`:''}
       </div>
-      ${meta.rootMeaning?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">词根释义 Significado de la raíz</div><div class="text-[13px] text-[#fde68a] leading-relaxed">${escapeHtml(meta.rootMeaning)}</div></div>`:''}
+      ${meta.rootMeaning?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">${isAffix?'词缀':'词根'}释义 Significado</div><div class="text-[13px] text-[#fde68a] leading-relaxed">${escapeHtml(meta.rootMeaning)}</div></div>`:''}
       ${latinOrigin?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">拉丁语源 Origen latino</div><div class="text-[13px] text-[#fbbf24] italic">${escapeHtml(latinOrigin)}</div></div>`:''}
-      ${(e0&&e0.analysis)?`<div class="mb-4"><div class="text-[10px] text-[#d8b4fe] uppercase tracking-wider mb-1">🎯 词根语义分析</div><div class="text-[13px] text-slate-100 leading-relaxed bg-gradient-to-br from-[#a855f7]/10 to-[#ec4899]/5 px-3 py-2 rounded-lg border border-[#a855f7]/20">${escapeHtml(e0.analysis)}</div></div>`:''}
-      ${(e0&&e0.etymology)?`<div class="mb-4"><div class="text-[10px] text-[#fbbf24] uppercase tracking-wider mb-1">📜 词源追溯</div><div class="text-[13px] text-slate-200 leading-relaxed bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15 whitespace-pre-wrap">${escapeHtml(e0.etymology)}</div></div>`:''}
-      ${(englishCognate||cognates.length)?`<div class="mb-4"><div class="text-[10px] text-[#7dd3fc] uppercase tracking-wider mb-1">🌐 跨语言同源 Cognados</div><div class="flex flex-wrap gap-1.5 items-center">${englishCognate?`<span class="text-[11px] px-2 py-0.5 rounded bg-[#38bdf8]/10 border border-[#38bdf8]/30 text-[#7dd3fc]">英语: <span class="italic">${escapeHtml(englishCognate)}</span></span>`:''}${cognates.map(c=>`<span class="text-[11px] px-2 py-0.5 rounded bg-white/5 border border-white/10 text-slate-300">${escapeHtml(c.lang)}: <span class="text-[#7dd3fc] italic">${escapeHtml(c.word)}</span>${c.ipa?` <span class="text-slate-500 font-mono">${escapeHtml(c.ipa)}</span>`:''}${c.meaning?` <span class="text-slate-500">${escapeHtml(c.meaning)}</span>`:''}</span>`).join('')}</div></div>`:''}
-      <div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">🌳 同族词 Familia de palabras（单击看详情 · 双击回到词源）</div><div class="space-y-1.5">${entries.map(e=>`<div class="cursor-pointer px-3 py-2 rounded-lg bg-white/[0.03] border ${e.word===root?'border-[#fbbf24]/40':'border-white/5'} hover:border-[#34d399]/30" onclick="selectEntry('${e.id}')" ondblclick="dblClickEntry('${e.id}')"><div class="flex items-baseline gap-2 flex-wrap"><span class="font-bold text-white text-[15px]">${escapeHtml(e.word)}</span>${e.word===root?`<span class="text-[8px] px-1 rounded bg-[#fbbf24]/15 text-[#fde68a] border border-[#fbbf24]/30">本${isAffix?'词缀':'词根'}</span>`:''}${e.pos?`<span class="text-[9px] px-1 rounded ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:''}${(e.gender&&e.pos!=='动词'&&e.pos!=='副词'&&e.pos!=='前缀'&&e.pos!=='后缀'&&e.pos!=='词根')?`<span class="text-[9px] px-1 rounded font-bold ${genderBadge(e.gender)}">${genderLabel(e.gender)}</span>`:''}${e.ipa?`<span class="text-[10px] text-[#7dd3fc] font-mono">${escapeHtml(e.ipa)}</span>`:''}</div><div class="text-[11px] text-slate-400 truncate">${escapeHtml((e.meaning||'').slice(0,40))}</div>${e.breakdown?`<div class="text-[10px] mt-1">${renderMorphology(e.breakdown)}</div>`:''}</div>`).join('')}</div></div>
+      ${(self&&self.analysis)?`<div class="mb-4"><div class="text-[10px] text-[#d8b4fe] uppercase tracking-wider mb-1">🎯 ${isAffix?'词缀作用':'词根语义'}分析</div><div class="text-[13px] text-slate-100 leading-relaxed bg-gradient-to-br from-[#a855f7]/10 to-[#ec4899]/5 px-3 py-2 rounded-lg border border-[#a855f7]/20 whitespace-pre-wrap">${escapeHtml(self.analysis)}</div></div>`:''}
+      ${(self&&self.etymology)?`<div class="mb-4"><div class="text-[10px] text-[#fbbf24] uppercase tracking-wider mb-1">📜 词源追溯</div><div class="text-[13px] text-slate-200 leading-relaxed bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15 whitespace-pre-wrap">${escapeHtml(self.etymology)}</div></div>`:''}
+      ${self?renderCognatesBlock(self):''}
+      <div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">🌳 派生词族 Familia de palabras（单击看详情 · 双击回到词源）</div><div class="space-y-1.5">${derived.length?derived.map(e=>`<div class="cursor-pointer px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5 hover:border-[#34d399]/30" onclick="selectEntry('${e.id}')" ondblclick="dblClickEntry('${e.id}')"><div class="flex items-baseline gap-2 flex-wrap"><span class="font-bold text-white text-[15px]">${escapeHtml(e.word)}</span>${e.ipa?`<span class="text-[10px] text-[#7dd3fc] font-mono">${escapeHtml(e.ipa)}</span>`:''}${e.pos?`<span class="text-[9px] px-1 rounded ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:''}${(e.gender&&e.pos!=='动词'&&e.pos!=='副词'&&!isRootEntry(e))?`<span class="text-[9px] px-1 rounded font-bold ${genderBadge(e.gender)}">${genderLabel(e.gender)}</span>`:''}</div><div class="text-[11px] text-slate-400 truncate">${escapeHtml((e.meaning||'').slice(0,40))}</div>${e.breakdown?`<div class="text-[10px] mt-1">${renderMorphology(e.breakdown)}</div>`:''}</div>`).join(''):'<div class="text-slate-500 text-xs italic px-2">暂无派生词</div>'}</div></div>
       ${tagPills?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">标签（词族语义聚合）</div><div>${tagPills}</div></div>`:''}
     </div>`;
 }
@@ -1387,27 +1469,33 @@ function selectRoot(root) {
   state.selectedEntryId = null;
   renderRootsList(); renderDetail();
 }
-// 双击词源：联动跳转到它的第一个单词（高亮 + 词条详情）。不筛选。
+// 双击词源：联动跳转到它的第一个单词。#0：若有搜索/筛选，跳到「过滤后」词族里的第一个，
+// 而不是全局第一个（避免跳到不在当前列表里的词）。
 function dblClickRoot(root) {
-  const entries = getEntriesForRoot(root);
-  if (!entries.length) return;
+  const all = getEntriesForRoot(root);
+  if (!all.length) return;
+  const visibleIds = new Set(getVisibleEntries().map(e => e.id));
+  const target = all.find(e => visibleIds.has(e.id) && e.word !== root) || all.find(e => visibleIds.has(e.id)) || all.find(e => e.word !== root) || all[0];
   state.highlightRoot = root;
-  state.selectedEntryId = entries[0].id;
+  state.selectedEntryId = target.id;
   renderRootsList(); renderWordsList(); renderDetail();
   scrollToActiveItems();
 }
 // 单击词条：只高亮 + 词条详情。不筛选、不进入词根分组。
 function selectEntry(id) { state.selectedEntryId = id; state.highlightRoot = null; renderRootsList(); renderWordsList(); renderDetail(); }
-// 双击词条：反向联动到它的词源（多词根默认主词根）。不筛选。
+// 双击词条：反向联动到它的主词根（#11：多词根固定用 getRootKey=e.root 主词根）。不筛选。
 function dblClickEntry(id) {
   const e = state.entries.find(x=>x.id===id); if (!e) return;
-  state.highlightRoot = getRootKey(e);   // 多词根默认反向关联到主词根
+  const primary = getRootKey(e);         // 主词根（e.root），多词根时的默认反向目标
+  // 若双击的就是词根/词缀条目本身，反向到它自己
+  state.highlightRoot = isRootEntry(e) ? e.word : primary;
   state.selectedEntryId = null;          // 切到词根详情
   renderRootsList(); renderWordsList(); renderDetail();
   setTimeout(()=>{ const a=document.querySelector('.root-item.active'); if(a)a.scrollIntoView({block:'nearest',behavior:'smooth'}); },50);
 }
 function selectEntryAndScroll(id) { const e = state.entries.find(x=>x.id===id); if(!e)return; state.selectedEntryId = id; state.highlightRoot = null; render(); setTimeout(()=>{ const d=document.getElementById('detail-panel'); if(d)d.scrollIntoView({behavior:'smooth',block:'center'}); },50); }
-function backToAll() { state.filter.letter = null; state.filter.root = null; if (!state.filter.search) state.highlightRoot = null; renderRootsList(); renderWordsList(); scrollToActiveItems(); const b=document.getElementById('back-to-all-btn'); if(b)b.style.display='none'; }
+// #10：返回只清字母筛选，保留选中词条 + 高亮词根（返回后仍定位到之前的选择）
+function backToAll() { state.filter.letter = null; state.filter.root = null; renderRootsList(); renderWordsList(); renderDetail(); scrollToActiveItems(); const b=document.getElementById('back-to-all-btn'); if(b)b.style.display='none'; }
 
 // =========================================================================
 // SEARCH
@@ -1462,6 +1550,119 @@ function openAddModal(entry=null) {
 function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
 function editEntry(id) { const e = state.entries.find(x=>x.id===id); if(e) openAddModal(e); }
 function deleteEntry(id) { const e = state.entries.find(x=>x.id===id); if(!e)return; if(!confirm(`删除「${e.word}」？`)) return; state.entries = state.entries.filter(x=>x.id!==id); state.tombstones.push({id, deletedAt:Date.now()}); if(state.selectedEntryId===id) state.selectedEntryId=null; save(); render(); toast(`已删除：${e.word}`,'success'); }
+// 从某词条解除一个词根/词缀关联（不删词条）。返回该词条解除后是否变孤儿
+function _unlinkRootFrom(e, root) {
+  if (e.root === root) {
+    // 主词根被删：提升第一个副词根为主，若无则标记孤儿
+    const rest = (e.roots||[]).filter(r => r !== root);
+    if (rest.length) { e.root = rest[0]; e.roots = rest.slice(1); }
+    else { e.root = ''; e.roots = []; e.rootless = true; }
+  } else {
+    e.roots = (e.roots||[]).filter(r => r !== root);
+  }
+  e.updatedAt = Date.now();
+  return !!e.rootless;
+}
+// #4 删除词根/词缀。词缀=弱关联(仅解除)；词根=强关联(仅挂它的词沦为孤儿分组，不删词)
+function deleteRoot(root) {
+  const type = classifyRoot(root);
+  const isAffix = type === 'affix';
+  const selfEntry = findRootEntry(root);
+  // 受影响的派生词（不含词根自身条目）
+  const affected = state.entries.filter(e => e.id !== (selfEntry&&selfEntry.id) && getRootKeys(e).includes(root));
+  const soleOwner = affected.filter(e => getRootKeys(e).length === 1);   // 仅挂靠此词根
+  const multi = affected.filter(e => getRootKeys(e).length > 1);          // 还有别的词根
+  let msg;
+  if (isAffix) {
+    msg = `删除词缀「${root}」？\n\n· 词缀是弱关联（属性），只会从 ${affected.length} 个词条解除关联，绝不删除任何词汇。`;
+  } else {
+    msg = `删除词根「${root}」？\n\n· ${multi.length} 个多词根词条：仅解除与「${root}」的关联，不受影响。\n· ${soleOwner.length} 个仅挂靠此词根的词条：不会被删除，会移入「${ORPHAN_KEY}」分组，可稍后用 AI 重新挂靠。`;
+  }
+  if (selfEntry) msg += `\n· 词${isAffix?'缀':'根'}自身条目「${root}」将被删除。`;
+  if (!confirm(msg)) return;
+  affected.forEach(e => _unlinkRootFrom(e, root));
+  if (selfEntry) { state.entries = state.entries.filter(x => x.id !== selfEntry.id); state.tombstones.push({id:selfEntry.id, deletedAt:Date.now()}); }
+  if (state.highlightRoot === root) state.highlightRoot = null;
+  save(); render();
+  const orphanCount = soleOwner.length;
+  toast(isAffix ? `已删除词缀「${root}」（解除 ${affected.length} 处关联）` : `已删除词根「${root}」${orphanCount?`，${orphanCount} 词移入孤儿分组` : ''}`, 'success');
+}
+// 为某词根/词缀建立独立条目（可编辑其固有释义/分析/词源）
+function createRootEntry(root) {
+  if (findRootEntry(root)) { toast('该词根已有独立条目','info'); return; }
+  const isAffix = classifyRoot(root) === 'affix';
+  openAddModal(null);
+  document.getElementById('add-modal-title').textContent = `新建${isAffix?'词缀':'词根'}条目`;
+  document.getElementById('add-word').value = root;
+  document.getElementById('add-pos').value = isAffix ? (root.startsWith('-') ? '后缀' : '前缀') : '词根';
+  document.getElementById('add-root').value = root;
+  toast(`填写「${root}」的固有含义/作用后保存`,'info');
+}
+function getOrphanEntries() { return state.entries.filter(e => e.rootless); }
+function _existingRootList() {
+  const s = new Set();
+  state.entries.forEach(e => { if (!e.rootless) getRootKeys(e).forEach(r => s.add(r)); });
+  return [...s].sort((a,b)=>a.localeCompare(b,'es'));
+}
+// #4 孤儿词 AI 重新挂靠：给现有词根，AI 逐词判断应挂哪个；无匹配则建议新词根（人工确认后才建）
+async function reattachOrphansWithAI() {
+  const orphans = getOrphanEntries();
+  if (!orphans.length) { toast('没有孤儿词','info'); return; }
+  const llm = getLLMSlot('completion');
+  if (!llm.apiKey) { toast('请先在 ⚙ 设置里填写补全 LLM 的 API Key','error'); activeLLMTab='completion'; openSettingsModal(); return; }
+  const roots = _existingRootList();
+  const prompt = `你是西班牙语词根分析专家。为下列「暂无词根挂靠」的词判断其核心词根。
+【现有词根库】${roots.join('、')||'（空）'}
+【待挂靠词】
+${orphans.map((e,i)=>`${i+1}. ${e.word}${e.meaning?'（'+e.meaning.split(/[;；]/)[0]+'）':''}`).join('\n')}
+【规则】优先挂到现有词根库里的词根；确实没有合适的才提议新词根(newRoot=true)。一个词可对应多个词根，第一个为主词根。
+【输出】仅严格 JSON：{"results":[{"word":"","root":"主词根","roots":["附加词根"],"newRoot":false}]}`;
+  const btn = event?.target; if (btn) { btn.disabled = true; btn.textContent = '⏳ 分析中...'; }
+  try {
+    const resp = await callLLM(llm, prompt, 2048);
+    const parsed = extractJSON(resp);
+    _showReattachPreview(parsed.results || []);
+  } catch(e) { toast('重新挂靠失败：'+e.message,'error'); console.error(e); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '🔗 AI 重新挂靠'; } }
+}
+function _showReattachPreview(results) {
+  const existing = new Set(_existingRootList());
+  const rows = results.filter(r => r && r.word).map(r => {
+    const primary = String(r.root||'').trim();
+    const extra = Array.isArray(r.roots)?r.roots.map(s=>String(s).trim()).filter(Boolean):[];
+    const isNew = r.newRoot || (primary && !existing.has(primary));
+    return { word:r.word, primary, extra, isNew };
+  });
+  const html = rows.map((r,i)=>`<label class="flex items-center gap-2 px-2 py-1.5 rounded border border-white/5 hover:border-[#34d399]/30 cursor-pointer text-xs">
+    <input type="checkbox" class="reattach-cb w-3 h-3 accent-[#34d399]" data-i="${i}" checked>
+    <span class="font-bold text-white">${escapeHtml(r.word)}</span>
+    <span class="text-slate-500">→</span>
+    <span class="text-[#f43f5e] font-bold">${escapeHtml(r.primary||'?')}</span>
+    ${r.extra.length?`<span class="text-slate-500">+ ${r.extra.map(escapeHtml).join(' ')}</span>`:''}
+    ${r.isNew?`<span class="text-[9px] px-1 rounded bg-[#fbbf24]/15 text-[#fde68a] border border-[#fbbf24]/30">新建词根</span>`:''}
+  </label>`).join('');
+  window._reattachRows = rows;
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-backdrop';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);';
+  overlay.innerHTML = `<div class="glass rounded-2xl p-6" style="max-width:560px;width:100%;"><div class="flex justify-between items-center mb-3"><h3 class="text-lg font-bold text-white">🔗 孤儿词重新挂靠预览</h3><button onclick="this.closest('.modal-backdrop').remove()" class="text-slate-400 hover:text-white">✕</button></div><div class="text-[11px] text-slate-400 mb-2">勾选要应用的项。标「新建词根」的会创建新词根关联（需你确认勾选）。</div><div style="max-height:55vh;overflow-y:auto" class="space-y-1">${html}</div><div class="flex gap-2 mt-3 justify-end"><button onclick="this.closest('.modal-backdrop').remove()" class="px-4 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-slate-300">取消</button><button onclick="applyReattach(this)" class="px-4 py-2 text-sm rounded-lg bg-[#34d399] text-slate-900 font-semibold">应用勾选</button></div></div>`;
+  document.body.appendChild(overlay);
+}
+function applyReattach(btn) {
+  const overlay = btn.closest('.modal-backdrop');
+  const checked = [...overlay.querySelectorAll('.reattach-cb:checked')].map(cb => +cb.dataset.i);
+  const rows = window._reattachRows || [];
+  let n = 0;
+  checked.forEach(i => {
+    const r = rows[i]; if (!r || !r.primary) return;
+    const e = getOrphanEntries().find(x => x.word === r.word);
+    if (!e) return;
+    e.root = r.primary; e.roots = r.extra; e.rootless = false; e.updatedAt = Date.now(); n++;
+  });
+  overlay.remove();
+  save(); render();
+  toast(`已重新挂靠 ${n} 个词`,'success');
+}
 function saveEntry() {
   const id = document.getElementById('edit-id').value;
   const word = document.getElementById('add-word').value.trim();
@@ -1479,6 +1680,7 @@ function saveEntry() {
     pronNote: document.getElementById('add-pronNote').value.trim(),
     root: document.getElementById('add-root').value.trim(),
     roots: document.getElementById('add-roots').value.trim().split(/\s+/).filter(Boolean),
+    rootless: !document.getElementById('add-root').value.trim() && !document.getElementById('add-roots').value.trim() ? (existing?.rootless||false) : false,
     rootMeaning: document.getElementById('add-rootMeaning').value.trim(),
     latinOrigin: document.getElementById('add-latinOrigin').value.trim(),
     meaning: document.getElementById('add-meaning').value.trim(),
@@ -1678,8 +1880,8 @@ function buildAIEntryPrompt(input, existingTags) {
 - ipa: 国际音标 IPA，斜杠包围（如 /eˈla.ðo/）
 - pronNote: 发音要点中文说明（重音位置 + 特殊字母读音 + 西/美差异），如「重音在 la；h 不发音；ð 是舌尖软 d；拉美 s 不吐气」
 - gender: 阴阳性（m/f，名词/形容词填）
-- root: 核心词根（如 hel-）；sufijo/prefijo 类填自身（如 -ado）
-- roots: 该词还归属的额外词根/词缀数组（如 reconstrucción 的 ["re-","con-","-ción"]）。一个词可属多个词根/词缀
+- root: 单一核心词根（如 hel-）；sufijo/prefijo 类填自身（如 -ado）。**禁止组合写法**：不要写 "luc-/luz" 或 "bien-ven" 这种拼接词根
+- roots: 该词还归属的额外词根/词缀数组（如 reconstrucción 的 ["re-","con-","-ción"]；luz 的 ["luz"]）。一个词若含多个词根/词缀，就分别列出，绝不合并成一个组合词根
 - rootMeaning: 词根核心含义，开头带 1-2 个 emoji 呼应词根义（如 ❄️寒冷、凝固 / ❤️爱 / 💡光）
 - latinOrigin: 拉丁语源形式（如 gelatus）
 - meaning: 中文释义。**开头放 1-3 个 emoji**（呼应词根义），如 💧水 / 🍦冰淇淋 / 👄🌶️🪡辣。多义项用；分隔
@@ -1701,7 +1903,11 @@ ${tagConstraint}
 function buildCompletionPrompt(batch) {
   const fields = completionConfig.fields.filter(f => f !== 'emoji');
   const hasEmoji = completionConfig.fields.includes('emoji');
-  const wordList = batch.map((e,i) => `${i+1}. ${e.word} | 释义:${e.meaning||'?'} | 词根:${e.root||'?'}${e.latinOrigin?' | 拉丁:'+e.latinOrigin:''}`).join('\n');
+  const hasRootEntry = batch.some(isRootEntry);
+  const wordList = batch.map((e,i) => {
+    if (isRootEntry(e)) return `${i+1}. ${e.word} 【${e.pos}条目·独立词素】| 现释义:${e.meaning||'?'}`;
+    return `${i+1}. ${e.word} | 释义:${e.meaning||'?'} | 词根:${e.root||'?'}${e.latinOrigin?' | 拉丁:'+e.latinOrigin:''}`;
+  }).join('\n');
   const fieldDesc = {
     meaning:'中文释义。开头放 1-3 个 emoji（呼应词根义），如 💧水/🍦冰淇淋',
     ipa:'国际音标，斜杠包围（如 /eˈla.ðo/）',
@@ -1715,7 +1921,7 @@ function buildCompletionPrompt(batch) {
     examples:'例句数组，每条"西语 — 中文"',
     related:'同根词数组',
     roots:'附加词根/词缀数组（主词根外还归属的，如 ["re-","con-","-ción"]）',
-    tags:'语义标签数组，格式「一级大类 > 二级子类」。20 大类：'+Object.keys(_TAG_SUB_EXAMPLES).join(' / '),
+    tags:'语义标签数组，必须是「一级大类 > 二级子类」两级格式（一级必须是下列 PCIC 官方 20 类之一，二级自拟具体子类）。20 大类：'+TAG_TAXONOMY_ROOTS.join(' / '),
     pos:'词性（名词/动词/形容词/副词/代词/介词/连词/冠词/数词/感叹词/后缀/前缀/词根，用中文）',
     gender:'阴阳性（m/f，名词/形容词填）',
     etymologyTier:'词源层次',
@@ -1728,11 +1934,16 @@ function buildCompletionPrompt(batch) {
   const fieldList = fields.map(f=>`- ${f}: ${fieldDesc[f]||''}`).join('\n');
   const sampleObj = { word: batch[0]?.word||'' }; fields.forEach(f => { if (f==='examples'||f==='related'||f==='tags'||f==='cognates'||f==='roots') sampleObj[f]=[]; else sampleObj[f]=''; });
   if (hasEmoji) { sampleObj.emoji = ''; fieldList += `\n- emoji: 1-3 个 emoji（呼应词根义），仅输出 emoji 本身`; }
+  const rootRule = hasRootEntry ? `\n【⚠ 词根/词缀条目特别规则】标【条目·独立词素】的是词根或词缀本身（如 bien-、ven-、-ción）。
+- meaning/analysis 必须描述该词根/词缀「固有的、跨所有派生词通用」的含义与构词作用，绝不能写成某个具体派生词的意思。
+  例：ven-(拉丁 venire「来」) 就写「来、到来」，不能因为它出现在 bienvenido 里就写成「欢迎」。
+  例：-ción 写「构成动作/结果的阴性抽象名词」，不写某个具体词义。
+- breakdown/gender/examples/related 对纯词根/词缀通常不适用，可留空。\n` : '';
   return `你是西班牙语历史语言学者。基于拉丁词根与音变规则，为下列词条补全字段。
 
 【音变参考】${SOUND_CHANGES.map(s=>s.rule).join('；')}
 【拉丁词根】${COMMON_LATIN_ROOTS.slice(0,10).join('；')}
-
+${rootRule}
 【词条】
 ${wordList}
 
@@ -1934,7 +2145,9 @@ function collectTagsForAI() {
 }
 function buildTagRestructurePrompt(tagData) {
   const tagList = tagData.map((t,i) => `${i+1}. ${t.tag} (${t.count}词条) — 例: ${t.samples.join(' | ')}`).join('\n');
-  const currentGraph = Object.keys(state.tagGraph||{}).length > 0 ? `\n【当前已有标签图（在此基础上优化）】\n${JSON.stringify(state.tagGraph,null,2)}\n` : '';
+  // 只传「叶子→父」的精简父链（而非整张 tagGraph 的 pretty JSON），省 token（#2）
+  const parentPairs = Object.entries(state.tagGraph||{}).filter(([_,v])=>v&&v.parent).map(([k,v])=>`${k}→${v.parent}`);
+  const currentGraph = parentPairs.length ? `\n【当前父链（在此基础上优化，紧凑格式 子→父）】\n${parentPairs.join('；')}\n` : '';
   const rootsList = TAG_TAXONOMY_ROOTS.map((r,i)=>`   ${i+1}. ${r}`).join('\n');
   return `你是西班牙语词汇语义分类专家，为西语学习者重组标签体系。
 
@@ -2140,17 +2353,17 @@ function maybeSeedExample() {
       analysis:'-or 表抽象状态，amor 即「爱的状态/情感」。',
       etymology:'拉丁 amor, -ōris → 西语 amor。', englishCognate:'amour / amorous', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['El amor es ciego. — 爱情是盲目的。'], related:['amar','amable','amante'], tags:['个体·感知与心理 > 情绪'], createdAt:now+8 },
-    { word:'luz', pos:'名词', gender:'f', root:'luc-/luz', rootMeaning:'💡光', latinOrigin:'lux, lucis',
+    { word:'luz', pos:'名词', gender:'f', root:'luc-', roots:['luz'], rootMeaning:'💡光', latinOrigin:'lux, lucis',
       ipa:'/luθ/', pronNote:'重音在 luz（单音节）；西班牙 θ（咬舌尖）；拉美发 s', meaning:'💡光；光明', breakdown:'luz(光，来自 luc-)',
-      analysis:'拉丁 lux（主格）/ lucis（属格）→ 西语 luz。词根 lumin-/luc- 表「光」。',
+      analysis:'拉丁 lux（主格）/ lucis（属格）→ 西语 luz。词根 luc- 表「光」，西语形 luz 为其变体。',
       etymology:'拉丁 lux, lucis → 西语 luz（c→z 音变）。同根：lunar, iluminar, lumbrera。',
-      englishCognate:'light / lucid / luminous', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
+      englishCognate:'light / lucid / luminous', cognates:[{lang:'英语',word:'lucid',ipa:'/ˈluːsɪd/',meaning:'清晰的'},{lang:'英语',word:'luminous',ipa:'/ˈluːmɪnəs/',meaning:'发光的'},{lang:'拉丁语',word:'lux',ipa:'/luːks/',meaning:'光'}], etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['La luz del sol. — 太阳的光。'], related:['iluminar','lunar','lumbrera'], tags:['地理与自然 > 光'], createdAt:now+9 },
-    { word:'decir', pos:'动词', root:'dic-/dec-', rootMeaning:'🗣️说', latinOrigin:'dicere', verbClass:'-ir', regularity:'不规则（e→i 词干变化）',
+    { word:'decir', pos:'动词', root:'dic-', roots:['dec-'], rootMeaning:'🗣️说', latinOrigin:'dicere', verbClass:'-ir', regularity:'不规则（e→i 词干变化）',
       ipa:'/deˈθiɾ/', pronNote:'重音在 θir；不规则 e→i 词干变化（digo/dices/dice）；西班牙 θ，拉美 s', meaning:'🗣️说；告诉', breakdown:'dec-(说词根，来自 dic-) + -ir(动词后缀)',
-      analysis:'拉丁 dicere「说」，印欧词根 *deik-「指出/说」。西语为不规则动词（e→i 词干变化）。',
+      analysis:'拉丁 dicere「说」，印欧词根 *deik-「指出/说」。西语为不规则动词（e→i 词干变化）。词根有 dic-/dec- 两个变体。',
       etymology:'拉丁 dicere → 西语 decir。同根：dictar, dictado, dictamen, edición, predicar。',
-      englishCognate:'diction / dictate / dictionary', etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
+      englishCognate:'diction / dictate / dictionary', cognates:[{lang:'英语',word:'diction',ipa:'/ˈdɪkʃən/',meaning:'措辞'},{lang:'英语',word:'dictate',ipa:'/dɪkˈteɪt/',meaning:'口授；命令'}], etymologyTier:'通俗拉丁语继承词', frequency:'高频', register:'中性',
       examples:['¿Qué dices? — 你说什么？'], related:['dictar','dictado','edición','predicar'], tags:['信息与媒体 > 语言文字','信息与媒体 > 说'], createdAt:now+10 },
     { word:'reconstrucción', pos:'名词', gender:'f', root:'struct-', roots:['re-','con-','-ción'], rootMeaning:'🏗️建造', latinOrigin:'struct-',
       ipa:'/re.kon.stɾukˈθjon/', pronNote:'重音在 θión；-ción 永远重读该音节；西班牙 θ，拉美 s', meaning:'🏗️重建；重构', breakdown:'re-(再) + con-(共同) + struct-(建造) + -ción(动作名词后缀)',
