@@ -992,6 +992,29 @@ async function restoreFileSync() {
   if (await verifyPermission(handle)) { updateFileSyncStatus(); toast(`已恢复本地文件同步：${handle.name}`,'info'); }
   else { updateFileSyncStatus(); }   // 句柄在但权限待重新授权，下次写入时再请求
 }
+// 页面加载后汇总报告持久化状态（绑定/云端/Gist 三方）
+function reportPersistenceStatus() {
+  const parts = [];
+  // 本地文件
+  if (fileSyncState.handle) {
+    const ok = fileSyncState.lastSync > 0;
+    parts.push(ok ? '📁 本地文件已绑定 ✓' : '📁 本地文件已绑定（待首次写入）');
+  } else if (_fsSupported()) {
+    parts.push('📁 本地文件未绑定（点 ⚙→📁绑定本地 可自动备份）');
+  } else {
+    parts.push('📁 浏览器不支持本地文件写入');
+  }
+  // Gist
+  if (syncReady()) {
+    const ts = syncStatus.lastPushAt || syncStatus.lastPullAt;
+    parts.push(ts ? '☁️ Gist 已连接 ✓' : '☁️ Gist 已配置（等待首次同步）');
+  } else {
+    parts.push('☁️ Gist 未配置（点 ⚙→☁️多端同步 可跨设备同步）');
+  }
+  // localStorage
+  parts.push(`💾 本地缓存 ${state.entries.length} 条`);
+  toast(parts.join(' · '), 'info');
+}
 
 // =========================================================================
 // LLM 配置（双槽 + provider 缓存）
@@ -3025,6 +3048,7 @@ render();
 updateAIButton();
 updateSyncStatusUI();
 restoreFileSync();   // 恢复已绑定的本地文件（异步，不阻塞首屏）
+setTimeout(reportPersistenceStatus, 800);   // 等异步操作完成后报告持久化状态
 </script>
 </body>
 </html>
