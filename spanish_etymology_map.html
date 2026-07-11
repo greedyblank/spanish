@@ -1880,9 +1880,9 @@ function onTagClick(tag, event) {
   const wasSelected = tagCloudState.selectedTag===tag && !tagCloudState.selectedSubTag;
   tagCloudState.selectedTag = wasSelected ? null : tag;
   tagCloudState.selectedSubTag = null;
-  // 展开标签云中的 PCIC 一级（chain 最后一个元素），高亮当前点击的标签
+  // getTagChain 用 unshift 把祖先放到前面 → chain[0]=PCIC一级, chain[length-1]=叶子
   const chain = getTagChain(tag)||[];
-  const pcicRoot = chain.length >= 2 ? chain[chain.length-1] : (chain.length === 1 ? chain[0] : null);
+  const pcicRoot = chain.length >= 2 ? chain[0] : (chain.length === 1 && TAG_TAXONOMY_ROOTS.includes(chain[0]) ? chain[0] : null);
   if (wasSelected) {
     tagCloudState.expandedRoot = null;
   } else {
