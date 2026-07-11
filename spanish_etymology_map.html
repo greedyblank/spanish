@@ -1193,9 +1193,10 @@ function renderCognatesBlock(e) {
       <div class="flex flex-wrap gap-1 items-center">${chips}</div>
     </div>`;
   }).join('');
-  // 英语总览线（优先显示 englishCognate 斜杠串，否则从 cognates 英语组提取）
+  // 英语总览线：优先 englishCognate，否则从英语组提取。统一格式化斜杠两边加空格
   const enWords = groups.find(g=>g.lang==='英语');
-  const overview = e.englishCognate || (enWords ? enWords.words.map(w=>w.word).join(' / ') : '');
+  const rawOverview = e.englishCognate || (enWords ? enWords.words.map(w=>w.word).join(' / ') : '');
+  const overview = rawOverview ? rawOverview.replace(/\s*\/\s*/g, ' / ').replace(/,\s*/g, ' / ') : '';
   const glance = overview ? `<div class="text-[11px] text-[#7dd3fc] mb-1.5">英语同源: <span class="italic">${escapeHtml(overview)}</span></div>` : '';
   return `<div class="mb-4"><div class="text-[10px] text-[#7dd3fc] uppercase tracking-wider mb-1.5">🌐 跨语言同源 Cognados</div>${glance}<div class="space-y-1">${rows}</div></div>`;
 }
@@ -1233,8 +1234,22 @@ const LANG_META = {
   '西班牙语':   { code:'es-ES', abbr:'西', flag:'🇪🇸' },
 };
 function langFlag(lang) { return LANG_META[lang]?.flag || ''; }
-function langAbbr(lang) { return LANG_META[lang]?.abbr || lang; }
-function langCode(lang) { return LANG_META[lang]?.code || lang; }  // 传中文名→BCP-47；传未知→原样返回（可能已是代码）
+function langAbbr(lang) {
+  if (LANG_META[lang]) return LANG_META[lang].abbr;
+  // AI 可能返回英文语言名或代码，尝试映射
+  const m = { 'English':'英','Spanish':'西','Italian':'意','French':'法','Portuguese':'葡','German':'德','Latin':'拉','Greek':'希','Arabic':'阿','Romanian':'罗','Catalan':'加','en':'英','es':'西','it':'意','fr':'法','pt':'葡','de':'德','la':'拉' };
+  return m[lang] || lang.slice(0,2);  // 兜底取前2字
+}
+function langCode(lang) {
+  if (LANG_META[lang]) return LANG_META[lang].code;
+  const m = { 'English':'en-US','Spanish':'es-ES','Italian':'it-IT','French':'fr-FR','Portuguese':'pt-PT','German':'de-DE','Latin':'la','en':'en-US','es':'es-ES','it':'it-IT','fr':'fr-FR','pt':'pt-PT','de':'de-DE','la':'la' };
+  return m[lang] || lang;
+}
+function langFlag(lang) {
+  if (LANG_META[lang]) return LANG_META[lang].flag;
+  const m = { 'English':'🇬🇧','Spanish':'🇪🇸','Italian':'🇮🇹','French':'🇫🇷','Portuguese':'🇵🇹','German':'🇩🇪','Latin':'🏛️','Greek':'🇬🇷','Arabic':'🇸🇦','en':'🇬🇧','es':'🇪🇸','it':'🇮🇹','fr':'🇫🇷','pt':'🇵🇹','de':'🇩🇪','la':'🏛️' };
+  return m[lang] || '';
+}
 function speakByLang(text, lang) { speak(text, langCode(lang)); }
 function getEntriesForRoot(root) {
   // 词条归属多个词根时，只要 root 在其 roots 集合内即计入（词根/词缀自身条目排最前）
@@ -2406,8 +2421,8 @@ function buildAIEntryPrompt(input, existingTags) {
 - breakdown: 形态拆解，格式「词根(义) + 后缀(义)」，如 hel-(寒冷词根) + -ado(过去分词后缀)
 - analysis: 词根语义流转分析 50-150 字
 - etymology: 词源追溯，展示 拉丁语 → 古西班牙语 → 现代形式，标注音变（f→h、ĕ→ie、-ct→ch 等）
-- englishCognate: 英语同源词斜杠速览串（如 "gelatin / gelato / congeal"）。⚠这里的每个词也必须以 {lang:'英语',word,ipa,meaning} 格式出现在 cognates 数组里
-- cognates: 数组 [{lang, word, ipa, meaning}]，**每个同源词（含英语）都必须带 IPA 发音和中文释义**。英语同源词同时填到 englishCognate 做速览。如 [{lang:'英语',word:'congeal',ipa:'/kənˈdʒiːl/',meaning:'凝结'},{lang:'意大利语',word:'gelato',ipa:'/dʒeˈlaːto/',meaning:'冰淇淋'}]
+- englishCognate: 英语同源词斜杠速览串，格式 "word1 / word2 / word3"（斜杠两边各留一个空格）。⚠每个词也必须以 {lang:'英语',word,ipa,meaning} 出现在 cognates
+- cognates: 数组 [{lang, word, ipa, meaning}]。**每个同源词都必须带 IPA 和中文释义**（lang 必须用中文全名：英语/意大利语/法语/葡萄牙语/拉丁语/德语/希腊语等，不可用 English/Italian 等英文名）。英语至少 2-3 个。英语的同源词同时写入 englishCognate 做斜杠速览（格式："word1 / word2 / word3"，斜杠两边加空格）。如 [{lang:'英语',word:'congeal',ipa:'/kənˈdʒiːl/',meaning:'凝结'},{lang:'意大利语',word:'gelato',ipa:'/dʒeˈlaːto/',meaning:'冰淇淋'}]
 - etymologyTier: 词源层次（通俗拉丁语继承词/古典拉丁语借词/希腊语来源/阿拉伯语来源/日耳曼语来源/法语借词/英语借词/美洲原住民语言/内部新造词）
 - examples: 数组，每条 "西语 — 中文"
 - related: 同根词数组
@@ -2433,8 +2448,8 @@ function buildCompletionPrompt(batch) {
     breakdown:'形态拆解「词根(义) + 后缀(义)」',
     analysis:'词根语义流转分析 50-150 字',
     etymology:'词源：拉丁语→古西语→现代，标注音变',
-    englishCognate:'英语同源词斜杠速览（如 "structure / construct / destruction"）。注意：这里每个词也必须以 {lang:\"英语\",word,ipa,meaning} 形式同时出现在 cognates 数组里',
-    cognates:'跨语言同源数组 [{lang,word,ipa,meaning}]。⚠英语至少2-3个，每个必须带IPA+中文释义。这些英语词必须同时在 englishCognate 里以斜杠列出。其它语言至少各1个，也要IPA+释义',
+    englishCognate:'英语同源斜杠速览，格式 "word1 / word2 / word3"（斜杠两边有空）。这里每个词必须也在 cognates 数组出现',
+    cognates:'跨语言同源 [{lang,word,ipa,meaning}]。lang 用中文全名(英语/意大利语/法语…)。⚠英语≥2个每个带IPA+中文释义,同时写入englishCognate。其他语言≥1个也要IPA+释义',
     latinOrigin:'拉丁语源形式',
     examples:'例句数组，每条"西语 — 中文"',
     related:'同根词数组',
