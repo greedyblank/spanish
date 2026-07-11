@@ -984,13 +984,15 @@ function updateFileSyncStatus() {
     el.classList.add('hidden');
   }
 }
+let _persistenceReported = false;
 async function restoreFileSync() {
-  if (!_fsSupported()) { updateFileSyncStatus(); return; }
+  if (!_fsSupported()) { updateFileSyncStatus(); if (!_persistenceReported) { _persistenceReported=true; reportPersistenceStatus(); } return; }
   const handle = await _idbLoadHandle();
-  if (!handle) { updateFileSyncStatus(); return; }
+  if (!handle) { updateFileSyncStatus(); if (!_persistenceReported) { _persistenceReported=true; reportPersistenceStatus(); } return; }
   fileSyncState.handle = handle;
   if (await verifyPermission(handle)) { updateFileSyncStatus(); toast(`已恢复本地文件同步：${handle.name}`,'info'); }
-  else { updateFileSyncStatus(); }   // 句柄在但权限待重新授权，下次写入时再请求
+  else { updateFileSyncStatus(); }
+  if (!_persistenceReported) { _persistenceReported = true; reportPersistenceStatus(); }
 }
 // 页面加载后汇总报告持久化状态（绑定/云端/Gist 三方）
 function reportPersistenceStatus() {
@@ -3047,8 +3049,8 @@ startCloudSync();
 render();
 updateAIButton();
 updateSyncStatusUI();
-restoreFileSync();   // 恢复已绑定的本地文件（异步，不阻塞首屏）
-setTimeout(reportPersistenceStatus, 800);   // 等异步操作完成后报告持久化状态
+restoreFileSync();   // 恢复已绑定的本地文件（异步完成后自动 reportPersistenceStatus）
+setTimeout(() => { if (!_persistenceReported) { _persistenceReported = true; reportPersistenceStatus(); } }, 5000);   // 兜底：5 秒后如果还没报告就强制报告
 </script>
 </body>
 </html>
