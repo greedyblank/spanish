@@ -2464,19 +2464,52 @@ ${fieldListFull}
 }
 function extractJSON(text) {
   let t = text.trim();
-  // 去除 markdown 代码块（多层可能的围栏）
+  // 去除 markdown 代码块
   t = t.replace(/```[\w]*\s*/gi,'').replace(/```/g,'');
-  // 若代码块包裹了 {…}，取最外层 JSON
-  const s = t.indexOf('{'), e = t.lastIndexOf('}');
-  if (s < 0 || e < 0) throw new Error('响应未找到 JSON');
-  t = t.slice(s, e + 1);
-  // 修复 LLM 常见 JSON 格式错误：尾随逗号、注释
-  t = t.replace(/,\s*([}\]])/g, '$1')           // 尾随逗号 ",]" / ",}"
-         .replace(/\/\/[^\n]*/g, '')            // 单行注释
-         .replace(/\/\*[\s\S]*?\*\//g, '');     // 块注释
-  // 修复数组最后元素多余的逗号（再次保险）
+  // 找到最外层 JSON 起止；若无闭合 } 则以文本末尾为终点
+  const s = t.indexOf('{');
+  if (s < 0) throw new Error('响应未找到 JSON');
+  let e = t.lastIndexOf('}');
+  if (e < 0) e = t.length;  // 无闭合 }：取到末尾，后续自动补齐
+  t = t.slice(s, e < t.length ? e + 1 : e);
+  // 修复 LLM 常见 JSON 格式错误
+  t = t.replace(/,\s*([}\]])/g, '$1')
+         .replace(/\/\/[^\n]*/g, '')
+         .replace(/\/\*[\s\S]*?\*\//g, '');
   t = t.replace(/,\s*\]/g, ']').replace(/,\s*\}/g, '}');
-  return JSON.parse(t);
+  // 尝试解析；失败则自动补齐 + 清理
+  try { return JSON.parse(t); } catch(e1) {
+    let cleaned = t;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      // 去掉末尾未闭合的字符串
+      let inStr=false, escaped=false;
+      for (let i=0; i<cleaned.length; i++) {
+        if (escaped) { escaped=false; continue; }
+        if (cleaned[i]==='\\') { escaped=true; continue; }
+        if (cleaned[i]==='"') inStr=!inStr;
+      }
+      if (inStr) { const lastQ=cleaned.lastIndexOf('"'); if (lastQ>=0) cleaned = cleaned.slice(0, lastQ); }
+      // 去掉末尾多余逗号
+      cleaned = cleaned.replace(/,\s*$/, '');
+      // 补齐未闭合的括号 — 按照嵌套顺序逆序闭合（先 } 后 ]）
+      let openB=0, closeB=0, openC=0, closeC=0;
+      const stack = [];
+      for (const ch of cleaned) {
+        if (ch==='[') { openB++; stack.push(']'); }
+        else if (ch===']') { closeB++; if (stack[stack.length-1]===']') stack.pop(); }
+        else if (ch==='{') { openC++; stack.push('}'); }
+        else if (ch==='}') { closeC++; if (stack[stack.length-1]==='}') stack.pop(); }
+      }
+      // stack 里剩余的就是需要闭合的（按打开顺序），需要逆序闭合
+      cleaned += stack.reverse().join('');
+      try { return JSON.parse(cleaned); } catch(e2) {}
+      // 回退到上一个完整值再试
+      const lastGood = Math.max(cleaned.lastIndexOf(']'), cleaned.lastIndexOf('}'), cleaned.lastIndexOf('"'));
+      if (lastGood < 5) break;
+      cleaned = cleaned.slice(0, lastGood + 1);
+    }
+    throw new Error('JSON Parse error: ' + (e1.message||'').slice(0,50));
+  }
 }
 
 // =========================================================================
@@ -2620,7 +2653,7 @@ async function runAICompletion() {
     updateAIProgress(i,total,batch[0]?.word);
     try {
       const prompt = buildCompletionPrompt(batch);
-      const resp = await callLLM(getLLMSlot('completion'), prompt, 4096);
+      const resp = await callLLM(getLLMSlot('completion'), prompt, 8192);
       const parsed = extractJSON(resp);
       const updated = applyCompletions(batch, parsed);
       totalUpdated += updated; aiLog(`✓ 完成 ${updated}/${batch.length}`,'success'); save(); render();
