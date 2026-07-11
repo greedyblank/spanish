@@ -1746,6 +1746,7 @@ function renderDetail() {
           ${playButton(e.word, 'lg')}
           ${e.pos?`<span class="text-[10px] px-1.5 py-0.5 rounded-full ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:''}
           ${(e.gender&&e.pos!=='动词'&&e.pos!=='副词'&&!isRootEntry(e))?`<span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${genderBadge(e.gender)}">${genderLabel(e.gender)}</span>`:''}
+          ${e.person?`<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#22d3ee]/15 text-[#67e8f9] border border-[#22d3ee]/30">${escapeHtml(e.person)}</span>`:''}
           ${e.frequency?`<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#34d399]/15 text-[#6ee7b7] border border-[#34d399]/30">${escapeHtml(e.frequency)}</span>`:''}
           <div class="flex gap-1 ml-auto shrink-0">
             <button onclick="openAIModal('${e.id}')" class="px-2 py-1 text-[10px] rounded-md bg-gradient-to-r from-[#a855f7]/20 to-[#ec4899]/20 border border-[#a855f7]/40 text-[#d8b4fe]" title="只补全这一个词条">✨ AI补全</button>
@@ -1759,7 +1760,6 @@ function renderDetail() {
           ${e.latinOrigin?`<span>· 拉丁 <span class="text-[#fbbf24] italic">${escapeHtml(e.latinOrigin)}</span></span>`:''}
           ${e.etymologyTier?`<span class="px-1.5 py-0.5 rounded-full bg-[#38bdf8]/10 text-[#7dd3fc] border border-[#38bdf8]/20">${escapeHtml(e.etymologyTier)}</span>`:''}
           ${e.verbClass?`<span class="px-1.5 py-0.5 rounded-full bg-[#fb7185]/15 text-[#fda4af] border border-[#fb7185]/30">${escapeHtml(e.verbClass)}</span>`:''}
-          ${e.person?`<span class="px-1.5 py-0.5 rounded-full bg-[#22d3ee]/15 text-[#67e8f9] border border-[#22d3ee]/30">${escapeHtml(e.person)}</span>`:''}
           ${e.regularity?`<span class="px-1.5 py-0.5 rounded-full bg-[#fbbf24]/15 text-[#fde68a] border border-[#fbbf24]/30">${escapeHtml(e.regularity)}</span>`:''}
           ${e.register&&e.register!=='中性'?`<span class="px-1.5 py-0.5 rounded-full bg-[#22d3ee]/15 text-[#67e8f9] border border-[#22d3ee]/30">${escapeHtml(e.register)}</span>`:''}
           ${e.region&&e.region!=='通用'?`<span class="px-1.5 py-0.5 rounded-full bg-[#8b5cf6]/15 text-[#c4b5fd] border border-[#8b5cf6]/30">${escapeHtml(e.region)}方言</span>`:''}
