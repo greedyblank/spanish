@@ -1867,7 +1867,11 @@ function renderTagCloud() {
     detail.classList.remove('hidden');
   } else { detail.classList.add('hidden'); tagCloudState.selectedSubTag = null; }
 }
-function selectSubTag(tag) { tagCloudState.selectedSubTag = (tagCloudState.selectedSubTag===tag ? null : tag); renderTagCloud(); renderWordsList(); }
+function selectSubTag(tag) {
+  if (tagCloudState.selectedSubTag===tag) { tagCloudState.selectedSubTag = null; tagCloudState.selectedTag = null; tagCloudState.expandedRoot = null; }
+  else { tagCloudState.selectedSubTag = tag; }
+  renderTagCloud(); renderWordsList();
+}
 function toggleTagCloudRoot(root, event) {
   if (event) event.stopPropagation();
   pushNav();
@@ -1877,18 +1881,19 @@ function toggleTagCloudRoot(root, event) {
 }
 function onTagClick(tag, event) {
   pushNav();
-  const wasSelected = tagCloudState.selectedTag===tag && !tagCloudState.selectedSubTag;
-  tagCloudState.selectedTag = wasSelected ? null : tag;
-  tagCloudState.selectedSubTag = null;
-  // getTagChain 用 unshift 把祖先放到前面 → chain[0]=PCIC一级, chain[length-1]=叶子
-  const chain = getTagChain(tag)||[];
-  const pcicRoot = chain.length >= 2 ? chain[0] : (chain.length === 1 && TAG_TAXONOMY_ROOTS.includes(chain[0]) ? chain[0] : null);
+  // 再点同一标签=取消筛选（不限一级/二级）
+  const wasSelected = tagCloudState.selectedTag===tag || tagCloudState.selectedSubTag===tag;
   if (wasSelected) {
+    tagCloudState.selectedTag = null;
+    tagCloudState.selectedSubTag = null;
     tagCloudState.expandedRoot = null;
   } else {
+    tagCloudState.selectedTag = tag;
+    // getTagChain 用 unshift → chain[0]=PCIC一级, chain[length-1]=叶子
+    const chain = getTagChain(tag)||[];
+    const pcicRoot = chain.length >= 2 ? chain[0] : (chain.length === 1 && TAG_TAXONOMY_ROOTS.includes(chain[0]) ? chain[0] : null);
     if (pcicRoot && TAG_TAXONOMY_ROOTS.includes(pcicRoot)) { tagCloudState.expandedRoot = pcicRoot; }
-    if (chain.length >= 2) { tagCloudState.selectedSubTag = tag; }
-    // 标签云折叠时自动展开
+    tagCloudState.selectedSubTag = chain.length >= 2 ? tag : null;
     if (_tagCloudCollapsed) toggleTagCloudSection();
   }
   renderTagCloud(); renderWordsList(); scrollToActiveItems();
