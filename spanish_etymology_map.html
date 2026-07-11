@@ -1888,6 +1888,8 @@ function onTagClick(tag, event) {
   } else {
     if (pcicRoot && TAG_TAXONOMY_ROOTS.includes(pcicRoot)) { tagCloudState.expandedRoot = pcicRoot; }
     if (chain.length >= 2) { tagCloudState.selectedSubTag = tag; }
+    // 标签云折叠时自动展开
+    if (_tagCloudCollapsed) toggleTagCloudSection();
   }
   renderTagCloud(); renderWordsList(); scrollToActiveItems();
 }
