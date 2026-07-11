@@ -223,7 +223,7 @@
 <div class="recent-drawer-backdrop" id="recent-drawer-backdrop" onclick="toggleRecentDrawer()"></div>
 <div class="recent-drawer" id="recent-drawer">
   <button class="recent-drawer-close" onclick="toggleRecentDrawer()" title="关闭">✕</button>
-  <h3 style="margin:0 0 14px;font-size:15px;">🕘 最近添加</h3>
+  <h3 style="margin:0 0 14px;font-size:15px;" title="按 createdAt 倒序排列，存于 localStorage，刷新/重启不丢，除非清缓存或删词条">🕘 最近添加</h3>
   <div style="margin:8px 0;display:flex;gap:6px;">
     <button class="recent-n-btn px-3 py-1 text-xs rounded-lg border border-white/10 bg-[#38bdf8]/20 text-[#7dd3fc]" onclick="setRecentN(10,event)">10</button>
     <button class="recent-n-btn px-3 py-1 text-xs rounded-lg border border-white/10 text-slate-400" onclick="setRecentN(20,event)">20</button>
@@ -1182,7 +1182,7 @@ function renderCognatesBlock(e) {
         ${w.meaning?`<span class="text-slate-400">${escapeHtml(w.meaning)}</span>`:''}
         ${playButton(w.word, 'xs', g.lang)}
       </span>`;
-    }).join('');
+    }).join('<span class="text-slate-600 mx-0.5">·</span>');
     return `<div class="flex items-baseline gap-1.5 flex-wrap">
       <span class="text-[10px] px-1.5 py-0.5 rounded bg-[#38bdf8]/10 border border-[#38bdf8]/30 text-[#7dd3fc] shrink-0">${langFlag(g.lang)}${abbr}</span>
       <div class="flex flex-wrap gap-1 items-center">${chips}</div>
@@ -1260,6 +1260,33 @@ const TAG_TAXONOMY_ROOTS = [
   '健康与卫生','旅行·住宿·交通','经济与工业','科学与技术',
   '政府·政治·社会','艺术活动','宗教与哲学','地理与自然',
 ];
+// PCIC 一级大类 emoji（#5：语义标签云+浏览器专用）
+const PCIC_EMOJI = {
+  '个体·身体维度':'🧍', '个体·感知与心理':'🧠', '个人身份':'🪪', '人际关系':'👥',
+  '饮食':'🍽️', '教育':'📚', '工作':'💼', '休闲娱乐':'🎮',
+  '信息与媒体':'📡', '居住':'🏠', '公共服务':'🏛️', '购物与商店':'🛒',
+  '健康与卫生':'🏥', '旅行·住宿·交通':'✈️', '经济与工业':'🏭', '科学与技术':'🔬',
+  '政府·政治·社会':'⚖️', '艺术活动':'🎨', '宗教与哲学':'🕊️', '地理与自然':'🌍',
+};
+// 二级子类 emoji（部分高频标签，可选；未覆盖的显示一级 emoji）
+const PCIC_SUB_EMOJI = {
+  '身体部位':'🦵','身体特征':'📏','生命周期与生殖':'👶',
+  '性格与人格':'😊','情感与情绪状态':'❤️','身体感受与知觉':'🌡️','心理状态':'😰','礼仪与行为':'🤝','个人价值观':'💎',
+  '食物':'🍎','饮品':'🥤','膳食与营养':'🥗','食谱':'📋','菜肴':'🍲','厨具与餐具':'🍴','餐厅':'🍽️',
+  '教育机构':'🏫','学习与教学':'✏️','考试与评分':'📝',
+  '职业与职位':'👷','工作活动':'⚙️',
+  '空闲与娱乐':'🎯','体育':'⚽','游戏':'🎲','演出与展览':'🎭',
+  '信息与通讯':'💬','电话':'📞','报刊':'📰','电视与广播':'📺','互联网':'🌐',
+  '住房特征':'🏡','家务活动':'🧹','家用物品':'🛋️',
+  '交通系统':'🚇','旅行':'🧳','住宿':'🛏️',
+  '金融与证券':'💰','贸易':'📊',
+  '一般问题':'🔧','生物学':'🧬','数学':'📐','计算机与新技术':'💻',
+  '政治与政府':'🏛️','法律与司法':'⚖️',
+  '音乐与舞蹈':'🎵','文学':'📖','电影与戏剧':'🎬','摄影':'📷',
+  '宗教':'⛪','哲学':'💭',
+  '宇宙与空间':'🌌','气候与天气':'🌦️','动物':'🐾','植物':'🌿','地理':'🗺️',
+};
+function tagEmoji(tag) { return PCIC_SUB_EMOJI[tag] || PCIC_EMOJI[tag] || ''; }
 // PCIC 官方二级子类（全封闭，提示词强制对齐）
 // 来源：https://cvc.cervantes.es/ensenanza/biblioteca_ele/plan_curricular/ — Nociones Específicas
 const _TAG_SUB_EXAMPLES = {
@@ -1794,9 +1821,10 @@ function renderTagCloud() {
     const sel = tagCloudState.selectedTag===root; const expanded = tagCloudState.expandedRoot===root;
     const kids = getTagChildren(root);
     const marker = isOfficial ? ' <span class="text-[#38bdf8] text-[8px]">🔷</span>' : '';
+    const emoji = tagEmoji(root);
     const kidInfo = kids.length ? `（${kids.length} 子类）` : '';
     return `<div class="rounded-lg border ${expanded?'border-[#34d399]/50 bg-[#34d399]/10':'border-white/10 bg-white/[0.03] hover:border-[#34d399]/40'} px-2 py-1 cursor-pointer" onclick="toggleTagCloudRoot('${escapeHtml(root).replace(/'/g,"\\'")}',event)">
-      <div class="flex justify-between mb-0.5"><span class="text-[12px] font-semibold text-white truncate">${escapeHtml(root)}${marker}</span><span class="text-[10px] text-slate-500">${cnt}</span></div>
+      <div class="flex justify-between mb-0.5"><span class="text-[12px] font-semibold text-white truncate">${emoji} ${escapeHtml(root)}${marker}</span><span class="text-[10px] text-slate-500">${cnt}</span></div>
       <div class="text-[9px] text-slate-500">${kidInfo}</div>
     </div>`;
   };
@@ -1826,14 +1854,18 @@ function toggleTagCloudRoot(root, event) {
 }
 function onTagClick(tag, event) {
   pushNav();
-  tagCloudState.selectedTag = tagCloudState.selectedTag===tag?null:tag;
+  const wasSelected = tagCloudState.selectedTag===tag && !tagCloudState.selectedSubTag;
+  tagCloudState.selectedTag = wasSelected ? null : tag;
   tagCloudState.selectedSubTag = null;
-  // #6：展开标签云中对应的 PCIC 一级，高亮这个标签
+  // 展开标签云中的 PCIC 一级（chain 最后一个元素），高亮当前点击的标签
   const chain = getTagChain(tag)||[];
-  if (chain.length >= 2) { tagCloudState.expandedRoot = chain[0]; tagCloudState.selectedSubTag = tag; }
-  else if (chain.length === 1) { tagCloudState.expandedRoot = chain[0]; tagCloudState.selectedSubTag = null; }
-  else { tagCloudState.expandedRoot = tag; tagCloudState.selectedSubTag = null; }
-  tagCloudState.selectedTag = tag;
+  const pcicRoot = chain.length >= 2 ? chain[chain.length-1] : (chain.length === 1 ? chain[0] : null);
+  if (wasSelected) {
+    tagCloudState.expandedRoot = null;
+  } else {
+    if (pcicRoot && TAG_TAXONOMY_ROOTS.includes(pcicRoot)) { tagCloudState.expandedRoot = pcicRoot; }
+    if (chain.length >= 2) { tagCloudState.selectedSubTag = tag; }
+  }
   renderTagCloud(); renderWordsList(); scrollToActiveItems();
 }
 function goToTag(tag, event) { onTagClick(tag, event); }
@@ -2192,7 +2224,7 @@ let _recentN = 10;
 function toggleRecentDrawer() { const d=document.getElementById('recent-drawer'), b=document.getElementById('recent-drawer-backdrop'); const open = d.classList.contains('open'); if(open){d.classList.remove('open');b.classList.remove('open');}else{d.classList.add('open');b.classList.add('open');renderRecent();} }
 function setRecentN(n, ev) { _recentN=n; document.querySelectorAll('.recent-n-btn').forEach(b=>{b.style.background='';b.style.color='';}); if(ev&&ev.target){ev.target.style.background='rgba(56,189,248,0.2)';ev.target.style.color='#7dd3fc';} renderRecent(); }
 function renderRecent() { const list=document.getElementById('recent-list'); if(!list)return; const items=state.entries.filter(e=>e.createdAt).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,_recentN); list.innerHTML = items.length?items.map(e=>`<div class="word-item px-3 py-2 rounded-lg border border-white/5 cursor-pointer" onclick="selectRecentEntry('${e.id}')"><span class="text-[#7dd3fc] font-bold text-base">${escapeHtml(e.word)}</span> <span class="text-slate-300 text-sm">${escapeHtml((e.meaning||'').split(/[;；]/)[0])}</span></div>`).join(''):'<div class="text-slate-500 text-sm p-2">还没有用户添加的词条</div>'; }
-function selectRecentEntry(id) { const e=state.entries.find(x=>x.id===id); if(!e)return; state.selectedEntryId=id; state.highlightRoot=null; document.getElementById('recent-drawer').classList.remove('open'); document.getElementById('recent-drawer-backdrop').classList.remove('open'); renderRootsList(); renderWordsList(); renderDetail(); scrollToActiveItems(); }
+function selectRecentEntry(id) { const e=state.entries.find(x=>x.id===id); if(!e)return; pushNav(); state.selectedEntryId=id; state.highlightRoot=null; document.getElementById('recent-drawer').classList.remove('open'); document.getElementById('recent-drawer-backdrop').classList.remove('open'); renderRootsList(); renderWordsList(); renderDetail(); scrollToActiveItems(); }
 
 // =========================================================================
 // TAG BROWSER
@@ -2207,7 +2239,8 @@ function renderTagTree() {
     const kids = getTagChildren(tag); const isExp = tagBrowserState.expanded.has(tag); const isSel = tagBrowserState.selectedTag===tag; const cnt = getTagCount(tag);
     const arrow = kids.length ? `<span class="inline-block w-4 text-[#34d399]">${isExp?'▾':'▸'}</span>` : '<span class="inline-block w-4"></span>';
     const pcicMark = (depth===0 && TAG_TAXONOMY_ROOTS.includes(tag)) ? ' <span class="text-[#38bdf8] text-[8px]">🔷</span>' : '';
-    return `<div class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer ${isSel?'bg-[#34d399]/15 text-[#6ee7b7]':'hover:bg-white/5 text-slate-300'}" style="margin-left:${depth*16}px" onclick="${`event.stopPropagation();${kids.length?`toggleTagExpand('${escapeHtml(tag).replace(/'/g,"\\'")}')`:''};selectTagInBrowser('${escapeHtml(tag).replace(/'/g,"\\'")}')`}">${arrow}<span class="font-medium">${escapeHtml(tag)}${pcicMark}</span><span class="ml-auto text-[10px] text-slate-500">${cnt}</span></div>${isExp?kids.map(k=>nodeHtml(k,depth+1)).join(''):''}`;
+    const emoji = tagEmoji(tag);
+    return `<div class="flex items-center gap-1.5 px-1.5 py-1 rounded cursor-pointer ${isSel?'bg-[#34d399]/15 text-[#6ee7b7]':'hover:bg-white/5 text-slate-300'}" style="margin-left:${depth*16}px" onclick="${`event.stopPropagation();${kids.length?`toggleTagExpand('${escapeHtml(tag).replace(/'/g,"\\'")}')`:''};selectTagInBrowser('${escapeHtml(tag).replace(/'/g,"\\'")}')`}">${arrow}<span class="font-medium">${emoji} ${escapeHtml(tag)}${pcicMark}</span><span class="ml-auto text-[10px] text-slate-500">${cnt}</span></div>${isExp?kids.map(k=>nodeHtml(k,depth+1)).join(''):''}`;
   };
   const orphan = roots.filter(t=>!state.tagGraph[t]); const grouped = roots.filter(t=>state.tagGraph[t]);
   let html = grouped.map(t=>nodeHtml(t,0)).join('');
