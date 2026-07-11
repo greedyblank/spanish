@@ -689,7 +689,7 @@ function repairData(opts={}) {
       id: uid(), word: root, pos: isAffix ? (root.startsWith('-') ? '后缀' : '前缀') : '词根',
       root: root, roots: [], rootMeaning: inf.rootMeaning, latinOrigin: inf.latinOrigin,
       meaning: '', breakdown: '', analysis: '', etymology: '', englishCognate: '', cognates: [],
-      etymologyTier: '', examples: [], related: [], tags: [], notes: '', gender: '', frequency: '',
+      etymologyTier: '', examples: [], related: [], tags: [], grammarForms: [], notes: '', gender: '', frequency: '',
       createdAt: Date.now(), updatedAt: Date.now(),
     });
     report.createdRootEntries++;
@@ -2235,7 +2235,7 @@ function _createRootStub(root) {
     id: uid(), word: root, pos: isAffix ? (root.startsWith('-') ? '后缀' : '前缀') : '词根',
     root: root, roots: [], rootMeaning: inf.rootMeaning, latinOrigin: inf.latinOrigin,
     meaning: '', breakdown: '', analysis: '', etymology: '', englishCognate: '', cognates: [],
-    etymologyTier: '', examples: [], related: [], tags: [], notes: '', gender: '', frequency: '',
+    etymologyTier: '', examples: [], related: [], tags: [], grammarForms: [], notes: '', gender: '', frequency: '',
     createdAt: Date.now(), updatedAt: Date.now(),
   });
 }
@@ -2351,6 +2351,7 @@ const COMPLETION_FIELD_META = {
   gender:{ label:'阴阳性', group:'分类', type:'enum' },
   etymologyTier:{ label:'词源层次', group:'分类', type:'enum' },
   // 语法特征（参考韩语 16 字段）
+  grammarForms:{ label:'语法派生词', group:'词法', type:'array' },
   person:{ label:'人称', group:'分类', type:'enum' },
   verbClass:{ label:'动词变位类', group:'词法', type:'enum' },
   regularity:{ label:'规则性', group:'词法', type:'enum' },
@@ -2458,6 +2459,7 @@ function buildAIEntryPrompt(input, existingTags) {
 - pronNote: 发音要点中文说明（重音位置 + 特殊字母读音 + 西/美差异），如「重音在 la；h 不发音；ð 是舌尖软 d；拉美 s 不吐气」
 - gender: 阴阳性（m/f，名词/形容词填）
 - person: 人称（第一人称/第二人称/第三人称/无人称，**仅动词填**，其余词类留空）
+- grammarForms: 语法派生词数组 [{form, label}]。动词→6人称现在时变位+标签；名词→单复数；形容词→阴阳单复4形；冠词→各形态。如 [{form:'hielo',label:'第一人称单数'},{form:'hielas',label:'第二人称单数'},...]
 - root: 单一核心词根（如 hel-）；sufijo/prefijo 类填自身（如 -ado）。**禁止组合写法**：不要写 "luc-/luz" 或 "bien-ven" 这种拼接词根
 - roots: 该词还归属的额外词根/词缀数组（如 reconstrucción 的 ["re-","con-","-ción"]；luz 的 ["luz"]）。一个词若含多个词根/词缀，就分别列出，绝不合并成一个组合词根
 - rootMeaning: 词根核心含义，开头带 1-2 个 emoji 呼应词根义（如 ❄️寒冷、凝固 / ❤️爱 / 💡光）
@@ -2476,7 +2478,7 @@ ${tagConstraint}
 【参考：核心音变规则】${SOUND_CHANGES.map(s=>s.rule+'（'+s.ex+'）').join('；')}
 
 【输出】仅输出严格 JSON，无 markdown 代码块：
-{"word":"","pos":"","ipa":"","pronNote":"","gender":"","person":"","root":"","roots":[],"rootMeaning":"","latinOrigin":"","meaning":"","breakdown":"","analysis":"","etymology":"","englishCognate":"","cognates":[],"etymologyTier":"","examples":[],"related":"","tags":[]}`;
+{"word":"","pos":"","ipa":"","pronNote":"","gender":"","person":"","root":"","roots":[],"rootMeaning":"","latinOrigin":"","meaning":"","breakdown":"","analysis":"","etymology":"","englishCognate":"","cognates":[],"etymologyTier":"","examples":[],"related":"","tags":[],"grammarForms":[]}`;
 }
 function buildCompletionPrompt(batch) {
   const fields = completionConfig.fields.filter(f => f !== 'emoji');
@@ -2502,6 +2504,7 @@ function buildCompletionPrompt(batch) {
     tags:'语义标签数组，必须「一级>二级」，二级从官方子类选（禁止自拟）。20 一级：'+TAG_TAXONOMY_ROOTS.join(' / ')+'。每类官方二级示例：'+(Object.entries(_TAG_SUB_EXAMPLES).map(([r,s])=>r+'>'+s.slice(0,3).join('/')).join('；')),
     pos:'词性（名词/动词/形容词/副词/代词/介词/连词/冠词/数词/感叹词/后缀/前缀/词根，用中文）',
     gender:'阴阳性（m/f，名词/形容词填）',
+    grammarForms:'语法派生词数组 [{form,label}]（动词6人称变位/名词单复数/形容词阴阳单复/冠词各形态）',
     person:'人称（第一/第二/第三人称，仅动词填）',
     etymologyTier:'词源层次',
     verbClass:'动词变位类（-ar/-er/-ir，仅动词）',
@@ -2632,6 +2635,7 @@ function normalizeAIEntry(p) {
     examples: Array.isArray(p.examples)?p.examples.map(s=>String(s).trim()).filter(Boolean):[],
     related: Array.isArray(p.related)?p.related.map(s=>String(s).trim()).filter(Boolean):[],
     tags: Array.isArray(p.tags)?p.tags.map(_ingestTag).filter(Boolean):[],
+    grammarForms: Array.isArray(p.grammarForms)?p.grammarForms:[],
     notes: '',
     frequency: '',
     createdAt: Date.now(), updatedAt: Date.now(),
