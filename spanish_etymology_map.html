@@ -1152,31 +1152,35 @@ function groupedCognates(e) {
     if (!lang || !word) return;
     if (!byLang.has(lang)) byLang.set(lang, []);
     const arr = byLang.get(lang);
-    if (!arr.some(x => x.word === word)) arr.push({ word, ipa: ipa||'', meaning: meaning||'' });
+    // 已存在同名 → 仅当新数据有 IPA/释义时覆盖更新（保护已有数据不被裸词冲掉）
+    const ex = arr.find(x => x.word === word);
+    if (ex) {
+      if (!ex.ipa && ipa) ex.ipa = ipa;
+      if (!ex.meaning && meaning) ex.meaning = meaning;
+      return;
+    }
+    arr.push({ word, ipa: ipa||'', meaning: meaning||'' });
   };
-  // 先收集 englishCognate 里的裸词（无 IPA/释义），后面 cognates[] 有则覆盖
+  // 1) 先收集 englishCognate 裸词作为英语占位（确保全面覆盖，后续 cognates[] 有 IPA 则覆盖更新）
   const bareEnglish = e.englishCognate ? e.englishCognate.split(/[\/,、]/).map(s=>s.trim()).filter(Boolean) : [];
+  bareEnglish.forEach(w => push('英语', w));
+  // 2) cognates[] 数据覆盖写入（有 IPA/释义的会更新对应占位）
   (e.cognates||[]).forEach(c => push(c.lang, c.word, c.ipa, c.meaning));
-  // englishCognate 兜底：只补充那些尚未在 cognates[] 里出现的英语词
-  bareEnglish.forEach(w => {
-    const arr = byLang.get('英语') || [];
-    if (!arr.some(x => x.word === w)) push('英语', w);
-  });
   const langs = [...byLang.keys()].sort((a,b) => {
     const ia = _LANG_ORDER.indexOf(a), ib = _LANG_ORDER.indexOf(b);
     return (ia<0?99:ia) - (ib<0?99:ib) || a.localeCompare(b);
   });
   return langs.map(lang => ({ lang, words: byLang.get(lang) }));
 }
-// 渲染「跨语言同源」区 — 药丸样式 + 语言缩写 + 每条带发音/释义/小播放按钮（#1/#1-1/#1-2/#1-3）
+// 渲染「跨语言同源」区 — 药丸样式 + 语言缩写 + 每条带发音/释义/小播放按钮
+// 英语特殊处理：englishCognate 斜杠总览行 + 每条单独 pill（#1）
 function renderCognatesBlock(e) {
   const groups = groupedCognates(e);
   if (!groups.length) return '';
-  // 多语言横向紧凑排列：语言缩写 + 词条药丸（不鼠标悬浮不点亮非点击项，发音按钮除外）
+  // 英语 glanced overview line + 各语言词条 pills
   const rows = groups.map(g => {
     const abbr = langAbbr(g.lang);
     const chips = g.words.map(w => {
-      const hasData = w.ipa || w.meaning;
       return `<span class="cognate-pill inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/[0.04] border border-white/[0.08] text-[11px]">
         <span class="text-[#7dd3fc] italic">${escapeHtml(w.word)}</span>
         ${w.ipa?`<span class="text-slate-500 font-mono">${escapeHtml(w.ipa)}</span>`:''}
@@ -1189,7 +1193,10 @@ function renderCognatesBlock(e) {
       <div class="flex flex-wrap gap-1 items-center">${chips}</div>
     </div>`;
   }).join('');
-  const glance = e.englishCognate ? `<div class="text-[11px] text-[#7dd3fc] mb-1.5">英语同源: <span class="italic">${escapeHtml(e.englishCognate)}</span></div>` : '';
+  // 英语总览线（优先显示 englishCognate 斜杠串，否则从 cognates 英语组提取）
+  const enWords = groups.find(g=>g.lang==='英语');
+  const overview = e.englishCognate || (enWords ? enWords.words.map(w=>w.word).join(' / ') : '');
+  const glance = overview ? `<div class="text-[11px] text-[#7dd3fc] mb-1.5">英语同源: <span class="italic">${escapeHtml(overview)}</span></div>` : '';
   return `<div class="mb-4"><div class="text-[10px] text-[#7dd3fc] uppercase tracking-wider mb-1.5">🌐 跨语言同源 Cognados</div>${glance}<div class="space-y-1">${rows}</div></div>`;
 }
 function escapeHtml(s) { return String(s==null?'':s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -2399,7 +2406,7 @@ function buildAIEntryPrompt(input, existingTags) {
 - breakdown: 形态拆解，格式「词根(义) + 后缀(义)」，如 hel-(寒冷词根) + -ado(过去分词后缀)
 - analysis: 词根语义流转分析 50-150 字
 - etymology: 词源追溯，展示 拉丁语 → 古西班牙语 → 现代形式，标注音变（f→h、ĕ→ie、-ct→ch 等）
-- englishCognate: 英语同源词（如 gelatin/gelato）
+- englishCognate: 英语同源词斜杠速览串（如 "gelatin / gelato / congeal"）。⚠这里的每个词也必须以 {lang:'英语',word,ipa,meaning} 格式出现在 cognates 数组里
 - cognates: 数组 [{lang, word, ipa, meaning}]，**每个同源词（含英语）都必须带 IPA 发音和中文释义**。英语同源词同时填到 englishCognate 做速览。如 [{lang:'英语',word:'congeal',ipa:'/kənˈdʒiːl/',meaning:'凝结'},{lang:'意大利语',word:'gelato',ipa:'/dʒeˈlaːto/',meaning:'冰淇淋'}]
 - etymologyTier: 词源层次（通俗拉丁语继承词/古典拉丁语借词/希腊语来源/阿拉伯语来源/日耳曼语来源/法语借词/英语借词/美洲原住民语言/内部新造词）
 - examples: 数组，每条 "西语 — 中文"
@@ -2426,13 +2433,13 @@ function buildCompletionPrompt(batch) {
     breakdown:'形态拆解「词根(义) + 后缀(义)」',
     analysis:'词根语义流转分析 50-150 字',
     etymology:'词源：拉丁语→古西语→现代，标注音变',
-    englishCognate:'英语同源词',
-    cognates:'跨语言同源数组 [{lang,word,ipa,meaning}]。英语至少2-3个同源词，每个必须带 IPA发音 和 中文释义。英语的同源词同时写入 englishCognate 字段作为斜杠速览（如 "construct / destruction / structure"）',
+    englishCognate:'英语同源词斜杠速览（如 "structure / construct / destruction"）。注意：这里每个词也必须以 {lang:\"英语\",word,ipa,meaning} 形式同时出现在 cognates 数组里',
+    cognates:'跨语言同源数组 [{lang,word,ipa,meaning}]。⚠英语至少2-3个，每个必须带IPA+中文释义。这些英语词必须同时在 englishCognate 里以斜杠列出。其它语言至少各1个，也要IPA+释义',
     latinOrigin:'拉丁语源形式',
     examples:'例句数组，每条"西语 — 中文"',
     related:'同根词数组',
     roots:'附加词根/词缀数组（主词根外还归属的，如 ["re-","con-","-ción"]）',
-    tags:'语义标签数组，必须「一级>二级」两级，二级从各一级下的官方子类中选（禁止自拟）：'+_tagTaxonomyText().replace(/\n/g,' ').replace(/\s+/g,' '),
+    tags:'语义标签数组，必须「一级>二级」，二级从官方子类选（禁止自拟）。20 一级：'+TAG_TAXONOMY_ROOTS.join(' / ')+'。每类官方二级示例：'+(Object.entries(_TAG_SUB_EXAMPLES).map(([r,s])=>r+'>'+s.slice(0,3).join('/')).join('；')),
     pos:'词性（名词/动词/形容词/副词/代词/介词/连词/冠词/数词/感叹词/后缀/前缀/词根，用中文）',
     gender:'阴阳性（m/f，名词/形容词填）',
     etymologyTier:'词源层次',
