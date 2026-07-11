@@ -262,8 +262,9 @@
       <div><label class="text-xs text-slate-400 block mb-1">形态拆解 Breakdown</label><input id="add-breakdown" type="text" placeholder="hel-(寒冷) + -ado(过去分词后缀)" class="w-full rounded-lg px-3 py-2"></div>
       <div><label class="text-xs text-slate-400 block mb-1">词根语义分析 Análisis</label><textarea id="add-analysis" rows="3" placeholder="50-150 字，词根核心动作 + 派生流转" class="w-full rounded-lg px-3 py-2"></textarea></div>
       <div><label class="text-xs text-slate-400 block mb-1">词源追溯 Etymology</label><textarea id="add-etymology" rows="3" placeholder="拉丁语 → 古西班牙语 → 现代形式（含音变）" class="w-full rounded-lg px-3 py-2"></textarea></div>
+      <div><label class="text-xs text-slate-400 block mb-1">跨语言同源 Cognates（每行一条：语言 单词 /IPA/ 释义）</label><textarea id="add-cognates" rows="3" placeholder="英语 gelatin /ˈdʒɛlətɪn/ 明胶&#10;意大利语 gelato /dʒeˈlaːto/ 冰淇淋&#10;法语 gelé /ʒə.le/ 冻结的" class="w-full rounded-lg px-3 py-2"></textarea></div>
       <div class="grid grid-cols-2 gap-3">
-        <div><label class="text-xs text-slate-400 block mb-1">英语同源</label><input id="add-englishCognate" type="text" placeholder="gelatin / gelato" class="w-full rounded-lg px-3 py-2"></div>
+        <div><label class="text-xs text-slate-400 block mb-1">英语同源（斜杠总览）</label><input id="add-englishCognate" type="text" placeholder="gelatin / gelato" class="w-full rounded-lg px-3 py-2"></div>
         <div><label class="text-xs text-slate-400 block mb-1">词源层次</label>
           <select id="add-etymologyTier" class="w-full rounded-lg px-3 py-2"><option value="">—</option><option>通俗拉丁语继承词</option><option>古典拉丁语借词</option><option>希腊语来源</option><option>阿拉伯语来源</option><option>日耳曼语来源</option><option>法语借词</option><option>意大利语借词</option><option>英语借词</option><option>美洲原住民语言</option><option>内部新造词</option></select></div>
       </div>
@@ -1837,14 +1838,14 @@ function renderTagCloud() {
     const root = tagCloudState.expandedRoot; const children = getTagChildren(root);
     const words = tagCloudState.selectedSubTag ? getTagWords(tagCloudState.selectedSubTag) : getTagWordsCumulative(root);
     const selSub = tagCloudState.selectedSubTag;
-    const subCards = children.length ? `<div class="flex flex-wrap gap-1.5 mb-2">${children.map(c=>`<span class="text-[13px] px-2 py-1 rounded cursor-pointer border ${selSub===c?'text-[#6ee7b7] bg-[#34d399]/15 border-[#34d399]/40':'text-slate-300 bg-white/5 border-white/10 hover:border-[#34d399]/30'}" onclick="event.stopPropagation();selectSubTag('${escapeHtml(c).replace(/'/g,"\\'")}')">${escapeHtml(c)}<span class="text-[10px] text-slate-500 ml-1">${getTagWords(c).length}</span></span>`).join('')}${selSub?`<button onclick="selectSubTag(null)" class="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-400 hover:text-white" title="回到展示一级下全部词汇">✕ 清</button>`:''}</div>` : '';
+    const subCards = children.length ? `<div class="flex flex-wrap gap-1.5 mb-2">${children.map(c=>`<span class="text-[13px] px-2 py-1 rounded cursor-pointer border ${selSub===c?'text-[#6ee7b7] bg-[#34d399]/15 border-[#34d399]/40':'text-slate-300 bg-white/5 border-white/10 hover:border-[#34d399]/30'}" onclick="event.stopPropagation();selectSubTag('${escapeHtml(c).replace(/'/g,"\\'")}')">${tagEmoji(c)} ${escapeHtml(c)}<span class="text-[10px] text-slate-500 ml-1">${getTagWords(c).length}</span></span>`).join('')}${selSub?`<button onclick="selectSubTag(null)" class="text-[10px] px-1.5 py-0.5 rounded border border-white/10 text-slate-400 hover:text-white" title="回到展示一级下全部词汇">✕ 清</button>`:''}</div>` : '';
     const wordGrid = `<div class="grid grid-cols-2 md:grid-cols-3 gap-1.5">${words.map(e=>`<div onclick="selectEntryAndScroll('${e.id}')" class="cursor-pointer px-2 py-1 rounded bg-white/[0.03] border border-white/5 hover:border-[#34d399]/30"><span class="font-bold text-white text-sm">${escapeHtml(e.word)}</span> <span class="text-xs text-slate-400">${escapeHtml((e.meaning||'').slice(0,15))}</span></div>`).join('')||'<div class="text-slate-500 text-xs italic">暂无词条</div>'}</div>`;
     const arrow = `<span class="text-[#34d399] font-bold mx-1">→</span>`;  // #3-5: 更明显的箭头颜色
     detail.innerHTML = `<div class="border-t border-white/10 pt-3 fade-in"><div class="text-xs text-slate-400 mb-2">${escapeHtml(root)} ${arrow} ${selSub?escapeHtml(selSub):'全部'} · ${words.length} 词条</div>${subCards}${wordGrid}</div>`;
     detail.classList.remove('hidden');
   } else { detail.classList.add('hidden'); tagCloudState.selectedSubTag = null; }
 }
-function selectSubTag(tag) { tagCloudState.selectedSubTag = tag; renderTagCloud(); renderWordsList(); }
+function selectSubTag(tag) { tagCloudState.selectedSubTag = (tagCloudState.selectedSubTag===tag ? null : tag); renderTagCloud(); renderWordsList(); }
 function toggleTagCloudRoot(root, event) {
   if (event) event.stopPropagation();
   pushNav();
@@ -1993,6 +1994,7 @@ function openAddModal(entry=null) {
   document.getElementById('add-analysis').value = entry?.analysis||'';
   document.getElementById('add-etymology').value = entry?.etymology||'';
   document.getElementById('add-englishCognate').value = entry?.englishCognate||'';
+  document.getElementById('add-cognates').value = (entry?.cognates||[]).map(c=>`${c.lang||''} ${c.word||''}${c.ipa?' '+c.ipa:''}${c.meaning?' '+c.meaning:''}`).join('\n');
   document.getElementById('add-etymologyTier').value = entry?.etymologyTier||'';
   document.getElementById('add-related').value = (entry?.related||[]).join(' ');
   document.getElementById('add-examples').value = (entry?.examples||[]).join('\n');
@@ -2141,6 +2143,7 @@ function saveEntry() {
     analysis: document.getElementById('add-analysis').value.trim(),
     etymology: document.getElementById('add-etymology').value.trim(),
     englishCognate: document.getElementById('add-englishCognate').value.trim(),
+    cognates: (()=>{ const raw=document.getElementById('add-cognates').value; return raw.split('\n').map(line=>line.trim()).filter(Boolean).map(line=>{ const m=line.match(/^(\S+)\s+(\S+)(?:\s+(\/[^/]+\/))?(?:\s+(.+))?/); if(!m)return null; return {lang:m[1],word:m[2],ipa:(m[3]||'').trim(),meaning:(m[4]||'').trim()}; }).filter(Boolean); })(),
     etymologyTier: document.getElementById('add-etymologyTier').value,
     related: document.getElementById('add-related').value.trim().split(/\s+/).filter(Boolean),
     examples: document.getElementById('add-examples').value.split('\n').map(s=>s.trim()).filter(Boolean),
@@ -2424,7 +2427,7 @@ function buildCompletionPrompt(batch) {
     analysis:'词根语义流转分析 50-150 字',
     etymology:'词源：拉丁语→古西语→现代，标注音变',
     englishCognate:'英语同源词',
-    cognates:'跨语言同源数组 [{lang,word,ipa,meaning}]，每个都带发音和中文释义',
+    cognates:'跨语言同源数组 [{lang,word,ipa,meaning}]。英语至少2-3个同源词，每个必须带 IPA发音 和 中文释义。英语的同源词同时写入 englishCognate 字段作为斜杠速览（如 "construct / destruction / structure"）',
     latinOrigin:'拉丁语源形式',
     examples:'例句数组，每条"西语 — 中文"',
     related:'同根词数组',
