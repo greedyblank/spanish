@@ -1,5 +1,22 @@
 # 更新记录 · CHANGELOG
 
+## 西7 — 同源词/标签云/交互/补全（24 项）（2026-07-11）
+
+- **同源词 COGNADOS 重做**（#1/#1-1/#1-2/#1-3）：改为药丸样式（对标 FAMILIA）、语言名用 2 字缩写（意/法/葡/英…）、每条同源词带发音+释义（修复 bug：不再只有第一条有）、每条后加小播放按钮 `playButton('xs', langCode)`。保留 `englishCognate` 斜杠串一眼总览。
+- **播放按钮扩展**（#2/#5）：派生词族每词后加小播放按钮、例句每行后加播放按钮（读西语句子部分）。
+- **形态拆解缩小**（#4）：语素 pill padding/size 均减小（`2px 8px`→`1px 6px`，font-size 0.85em）。
+- **导航历史全局返回**（#2）：header 增加 `← 返回` 按钮。`selectEntry/selectRoot/dblClickRoot/dblClickEntry/selectLetter/onTagClick/jumpToMorpheme` 等核心导航均推入 `_navHistory` 栈（最大 60），点返回逐级回退（恢复 letter/filter/tag/highlight/selected 全状态）。历史空时按钮变暗不可点。
+- **双击词条不切详情**（#6）：`dblClickEntry` 只高亮+定位词根到左栏（`highlightRoot`），**详情保持显示当前双击的单词**，不切到词根详情（与之前 #8 语义对照：单击词根→词根详情；双击词根→第一个词详情）。双击词条=词条详情+词根高亮；双击词根=词条详情+词根高亮。
+- **字母分组筛选重构**（#8）：进入字母组 = 展示「首字母=该字母的词条」或「任一词根/词缀在该组的词条」（`_letterGroupIds`/`_inLetterGroup`）。`仅词根` 模式下额外过滤：词表只展示由该组**词根**派生的词；`仅词缀` 同理。
+- **标签云改为语义标签云**（#3/#3-1/#3-2/#3-3/#3-4/#3-5）：PCIC 官方 20 大类标记🔷；`tagCloudState.selectedSubTag` 支持二级精确筛选（点一级→展开二级+全量词条；点二级→只看该二级词条）；词表/标签筛选联动；浏览器整行可点击展开（不限于三角）；一级→二级箭头颜色改为 `#34d399` 醒目；新增「🧹 清除空组」按钮。
+- **AI 补全双 Tab**（#10）：全量补全弹窗分 **「📝 单词补全」/「🌱 词根/词缀补全」**，Tab 切换联动 `_completionTab`+`findIncompleteEntries` 过滤。从词根详情进→自动切 roots Tab 并默认去勾 gender/verbClass（不适用字段）。
+- **AI 补全取消`仅填空字段`后可用**（#7）：取消勾选不再禁用「开始补全」按钮——屏幕提示改为含警告「将覆盖全部 N 条」，用户自主决定覆盖。
+- **新建词条自动创建缺失词根条目**（#9）：`saveEntry` 后调用 `_createRootStub` 为 `root`+`roots[]` 中每个被引用但无条目的词根/词缀快速建 stub（含推断的 rootMeaning/latinOrigin），后续可用 AI 补全充实。
+- **前缀/后缀徽章差异化**（#11）：`.prefix-badge`（橙色）vs `.suffix-badge`（绿色），与词根 `.root-badge`（蓝色）一眼区分。词根列表的 affix 项 + 详情卡均使用。
+- **词缀排序忽略前导 `-`**（#12）：`_sortKey` 剥离前导 `-`，`getVisibleEntries` 统一使用。
+- **重音符号指引**（#1）：AI 新词条 prompt 明示 `á é í ó ú ñ` 规则、疑问词 vs 关系代词的重音区分、IPA 重音标注。
+- **种子/数据补全**：`_LANG_ORDER` 语言缩写映射、`playButton` 支持 `lang` 参数按语言 TTS、`speak` 支持 `lang` 参数、`groupedCognates` 修复 englishCognate 兜底逻辑（只补 cognates[] 未出现的，不覆盖已有发音释义）。
+
 ## 西6 — 本地文件实时同步 + 数据自愈工具（2026-07-11）
 
 - **绑定本地文件（File System Access API）**：移植自韩/日姊妹项目。设置里「📁 绑定本地」选一个 `.json` 后，每次修改自动写盘（600ms 防抖），句柄存 IndexedDB 跨会话保留（`restoreFileSync`），刷新后自动恢复。搜索栏上方有同步状态指示条（已绑定显示文件名+时间+解绑；未绑定显示「绑定」入口）。仅 Chrome/Edge 支持，不支持时指示条自动隐藏。与 Gist 多端同步**并存不冲突**（`save()` 里两条并列）。写盘格式 = 导出格式（entries/tagGraph/tombstones/version），可直接被「↑ 导入」读回。
