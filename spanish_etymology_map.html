@@ -749,17 +749,12 @@ function mergeState(local, remote) {
 }
 async function pushToGist(verbose) {
   if (!syncReady() || syncStatus.busy) return;
-  if (Date.now() < _rateLimitedUntil) { if (verbose) toast('GitHub 限流冷却中','info'); return; }
+  if (Date.now() < _rateLimitedUntil) { toast('☁️ GitHub 限流冷却中…','info'); return; }
   const sig = payloadSig(buildPayload());
-  if (sig === _lastPushedSig) { if (verbose) toast('内容未变化','info'); return; }
+  if (sig === _lastPushedSig) return;   // 内容未变化，静默跳过
   syncStatus.busy = true;
+  toast('☁️ 正在上传到云端…','info');
   try {
-    const res = await fetch(`https://api.github.com/gists/${syncConfig.gistId}`, {
-      method:'PATCH',
-      headers:{'Authorization':`Bearer ${syncConfig.token}`,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
-      body: JSON.stringify({ description:'Spanish Etymology Map (auto-synced)', files:{ [GIST_FILE]:{ content: payloadSig(buildPayload()) } } }),
-    });
-    // 实际应上传完整 payload（简化：上传签名防重；完整数据用 patch）
     const fullRes = await fetch(`https://api.github.com/gists/${syncConfig.gistId}`, {
       method:'PATCH',
       headers:{'Authorization':`Bearer ${syncConfig.token}`,'Accept':'application/vnd.github+json','Content-Type':'application/json'},
@@ -769,30 +764,31 @@ async function pushToGist(verbose) {
     _lastPushedSig = payloadSig(buildPayload());
     syncStatus.lastPushAt = Date.now();
     syncStatus.lastError = '';
-    if (verbose) toast('已上传到云端','success');
+    toast('☁️ 已上传到云端','success');
   } catch(e) {
     syncStatus.lastError = '上传失败：'+e.message;
     if (/403|rate limit/i.test(e.message)) { _rateLimitedUntil = Date.now()+5*60*1000; syncStatus.lastError='GitHub 限流，5 分钟后重试'; }
-    toast(syncStatus.lastError,'error');
+    toast('☁️ '+syncStatus.lastError,'error');
   } finally { syncStatus.busy=false; updateSyncStatusUI(); }
 }
 async function pullFromGist(verbose) {
   if (!syncReady() || syncStatus.busy) return;
   if (Date.now() < _rateLimitedUntil) { if (verbose) toast('GitHub 限流冷却中','info'); return; }
   syncStatus.busy = true;
+  toast('☁️ 正在从云端拉取…','info');
   try {
     const res = await fetch(`https://api.github.com/gists/${syncConfig.gistId}`, { headers:{'Authorization':`Bearer ${syncConfig.token}`,'Accept':'application/vnd.github+json'} });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const raw = data.files?.[GIST_FILE]?.content;
     syncStatus.lastPullAt = Date.now();
-    if (!raw) { syncStatus.lastError=''; updateSyncStatusUI(); if (verbose) toast('云端为空，等待首次上传','info'); return; }
+    if (!raw) { syncStatus.lastError=''; updateSyncStatusUI(); toast('☁️ 云端为空','info'); return; }
     const remote = JSON.parse(raw);
-    if (!remote.entries) { syncStatus.lastError=''; updateSyncStatusUI(); return; }  // 旧签名格式
+    if (!remote.entries) { syncStatus.lastError=''; updateSyncStatusUI(); return; }
     const before = payloadSig(buildPayload());
     const merged = mergeState(buildPayload(), remote);
     const after = payloadSig(merged);
-    if (after === before) { syncStatus.lastError=''; updateSyncStatusUI(); if (verbose) toast('已是最新','info'); return; }
+    if (after === before) { syncStatus.lastError=''; updateSyncStatusUI(); toast('☁️ 云端数据已是最新','info'); return; }
     state.entries = merged.entries;
     state.tombstones = merged.tombstones;
     state.tagGraph = merged.tagGraph;
@@ -800,14 +796,14 @@ async function pullFromGist(verbose) {
     _lastPushedSig = after;
     save(); render(); updateStats();
     syncStatus.lastError=''; updateSyncStatusUI();
-    toast('已同步云端数据','success');
+    toast('☁️ 已同步云端数据（合并 '+remote.entries.length+' 条）','success');
   } catch(e) {
     syncStatus.lastError='拉取失败：'+e.message;
     updateSyncStatusUI();
-    toast('拉取失败：'+e.message,'error');
+    toast('☁️ 拉取失败：'+e.message,'error');
   } finally { syncStatus.busy=false; }
 }
-function scheduleCloudSync() { if (!syncConfig.autoSync || !syncReady()) return; clearTimeout(_pushTimer); _pushTimer = setTimeout(()=>pushToGist(false), 1500); }
+function scheduleCloudSync() { if (!syncConfig.autoSync || !syncReady()) return; clearTimeout(_pushTimer); _pushTimer = setTimeout(()=>pushToGist(true), 1500); }
 function startCloudSync() {
   loadSyncConfig();
   if (!syncReady()) return;
@@ -956,16 +952,23 @@ async function syncToFile(force=false) {
     await writable.write(JSON.stringify(data, null, 2));
     await writable.close();
     fileSyncState.lastSync = Date.now();
-    if (force) updateFileSyncStatus();
+    updateFileSyncStatus();
+    if (force) toast('✓ 已写入本地文件：'+fileSyncState.handle.name,'success');
   } catch(e) {
     console.error('File sync failed:', e);
-    if (e.name === 'NotAllowedError') { toast('文件写入权限丢失，请重新绑定','error'); fileSyncState.handle = null; await _idbClearHandle(); updateFileSyncStatus(); }
+    if (e.name === 'NotAllowedError') { toast('⚠ 本地文件写入权限丢失，请重新绑定','error'); fileSyncState.handle = null; await _idbClearHandle(); updateFileSyncStatus(); }
+    else { toast('⚠ 本地文件写入失败：'+e.message,'error'); }
   }
 }
+let _fileSyncToastTimer = null;
 function syncToFileDebounced() {
-  if (!fileSyncState.handle || fileSyncState.syncScheduled) return;
-  fileSyncState.syncScheduled = true;
-  setTimeout(() => { fileSyncState.syncScheduled = false; syncToFile(); }, 600);
+  if (!fileSyncState.handle) return;
+  if (!fileSyncState.syncScheduled) {
+    toast('💾 正在写入本地文件…', 'info');
+    fileSyncState.syncScheduled = true;
+  }
+  clearTimeout(_fileSyncToastTimer);
+  _fileSyncToastTimer = setTimeout(() => { fileSyncState.syncScheduled = false; syncToFile(); }, 600);
 }
 function updateFileSyncStatus() {
   const el = document.getElementById('file-sync-indicator');
