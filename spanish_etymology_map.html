@@ -1771,7 +1771,7 @@ function renderDetail() {
       ${e.analysis?`<div class="mb-4"><div class="text-[10px] text-[#d8b4fe] uppercase tracking-wider mb-1">🎯 词根语义分析</div><div class="text-[13px] text-slate-100 leading-relaxed bg-gradient-to-br from-[#a855f7]/10 to-[#ec4899]/5 px-3 py-2 rounded-lg border border-[#a855f7]/20 whitespace-pre-wrap">${escapeHtml(e.analysis)}</div></div>`:''}
       ${e.etymology?`<div class="mb-4"><div class="text-[10px] text-[#fbbf24] uppercase tracking-wider mb-1">📜 词源追溯 Etimología</div><div class="text-[13px] text-slate-200 leading-relaxed bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15 whitespace-pre-wrap">${escapeHtml(e.etymology)}</div></div>`:''}
       ${renderCognatesBlock(e)}
-      ${(e.grammarForms||[]).length?`<div class="mb-4"><div class="text-[10px] text-[#c4b5fd] uppercase tracking-wider mb-1">📐 语法派生词</div><div class="flex flex-wrap gap-1.5">${(e.grammarForms||[]).map(gf=>`<span class="text-[12px] px-2 py-0.5 rounded bg-[#8b5cf6]/10 text-[#c4b5fd] border border-[#8b5cf6]/20 inline-flex items-center gap-1"><span class="font-bold">${escapeHtml(gf.form)}</span><span class="text-[10px] text-slate-500">${escapeHtml(gf.label)}</span>${playButton(gf.form,'xs')}</span>`).join('')}</div></div>`:''}
+      ${(e.grammarForms||[]).length?`<div class="mb-4"><div class="text-[10px] text-[#c4b5fd] uppercase tracking-wider mb-1">📐 语法派生词</div><div class="flex flex-wrap gap-1.5">${(e.grammarForms||[]).map(gf=>`<span class="text-[12px] px-2 py-0.5 rounded bg-[#8b5cf6]/10 text-[#c4b5fd] border border-[#8b5cf6]/20 inline-flex items-center gap-1"><span class="font-bold">${escapeHtml(gf.form)}</span>${gf.ipa?`<span class="text-[10px] text-slate-400 font-mono">${escapeHtml(gf.ipa)}</span>`:''}<span class="text-[10px] text-slate-500">${escapeHtml(gf.label)}</span>${playButton(gf.form,'xs')}</span>`).join('')}</div></div>`:''}
       ${(e.examples||[]).length?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">💬 例句 Ejemplos</div><div class="space-y-1">${e.examples.map(ex=>`<div class="flex items-center gap-1 text-[13px] pl-2 border-l-2 border-[#34d399]/40"><span class="text-slate-100 flex-1">${escapeHtml(ex)}</span>${playButton(ex.split('—')[0]?.trim()||ex,'xs')}</div>`).join('')}</div></div>`:''}
       ${(e.related||[]).length?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">🔗 同根词 Familia（库内可点击）</div><div class="flex flex-wrap gap-1.5">${relatedHtml}</div></div>`:''}
       ${tagPills?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">标签 Tags</div><div>${tagPills}</div></div>`:''}
@@ -3063,7 +3063,19 @@ migrateTaxonomyToPCIC();
 // 一次性清理 localStorage 中的非官方孤儿标签（AI 补全历史遗留）
 _purgeNonOfficialTags();
 startCloudSync();
+// 默认视图：仅词根 + 高亮最近添加的词条/词根
+state.rootTypeFilter = 'root';
 render();
+setTimeout(() => {
+  const recent = state.entries.filter(e => e.createdAt && !isRootEntry(e)).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0))[0];
+  if (recent) {
+    state.selectedEntryId = recent.id;
+    state.highlightRoot = getRootKey(recent);
+    render();
+    scrollToActiveItems();
+  }
+}, 100);
+syncRootTypeFilterBtns();
 updateAIButton();
 updateSyncStatusUI();
 restoreFileSync();   // 恢复已绑定的本地文件（异步完成后自动 reportPersistenceStatus）
