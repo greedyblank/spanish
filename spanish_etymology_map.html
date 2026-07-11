@@ -1320,10 +1320,31 @@ function _routeTagToRoot(tag) {
     [/政|治|法|律|权|国|社会|罪|罚|选举|政府|军/, '政府·政治·社会'],
     [/音乐|美术|画|文学|影|戏|舞|艺术|艺/, '艺术活动'],
     [/宗|神|佛|哲|信仰|伦理|传统|史|仪式/, '宗教与哲学'],
-    [/天|雨|风|星|山|河|海|地|自然|生物|气象|植物|动物|光|火|水|温度|季节|时间|环境/, '地理与自然'],
+    [/天|雨|风|星|山|河|海|地|自然|生物|气象|植物|动物|光|火|水|温度|季节|时间|环境|空间|方位/, '地理与自然'],
+    [/态度|愿望|道德|价值观|评价|程度|比较|好坏|优劣/, '个体·感知与心理'],
   ];
   for (const [re, root] of R) if (re.test(t)) return root;
+  // 兜底：2字以上中文标签，在所有官方二级中找最佳匹配
+  for (const [root, subs] of Object.entries(_TAG_SUB_EXAMPLES)) {
+    for (const s of subs) {
+      if (t.length >= 2 && s.length >= 2 && (t.includes(s.slice(0,2)) || s.includes(t.slice(0,2)))) return root;
+    }
+  }
   return null;
+}
+// 一次性清理 localStorage 中的非官方孤儿标签（AI 补全历史遗留，不影响词条数据）
+function _purgeNonOfficialTags() {
+  if (localStorage.getItem('spanish_purge_orphans_v1')) return;
+  const g = state.tagGraph || {};
+  const official = new Set([...TAG_TAXONOMY_ROOTS, ...Object.values(_TAG_SUB_EXAMPLES).flat()]);
+  const used = new Set(); state.entries.forEach(e => (e.tags||[]).forEach(t => used.add(t)));
+  let removed = 0;
+  for (const k of Object.keys(g)) {
+    if (!official.has(k) && !used.has(k)) { delete g[k]; removed++; }
+    else if (g[k] && g[k].parent && !official.has(g[k].parent)) { g[k].parent = '个体·感知与心理'; }
+  }
+  if (removed > 0) { state.tagGraphUpdatedAt = Date.now(); save(); console.log(`[Purge] removed ${removed} orphan tagGraph nodes`); }
+  localStorage.setItem('spanish_purge_orphans_v1', '1');
 }
 // 查找一个叶子标签最匹配的官方 PCIC 二级子类（模糊匹配）
 function _findOfficialSub(root, leaf) {
@@ -1358,13 +1379,12 @@ function _ingestTag(rawTag) {
     state.tagGraphUpdatedAt = Date.now();
     return target;
   }
-  // 单个词 → 路由到 PCIC 一级 + 找最匹配的官方二级（或兜底到第一个二级）
+  // 单个词 → 路由到 PCIC 一级 + 找最匹配的官方二级（或硬兜底，绝不返回非官方标签）
   const leaf = parts[0];
-  if (TAG_TAXONOMY_ROOTS.includes(leaf)) return leaf;  // 本身就是一级，不作为叶子标签
-  const root = _routeTagToRoot(leaf);
-  if (!root) return leaf;
+  if (TAG_TAXONOMY_ROOTS.includes(leaf)) return leaf;
+  const root = _routeTagToRoot(leaf) || '个体·感知与心理';  // 硬兜底：路由失败的一律归入 个体·感知与心理
   const official = _findOfficialSub(root, leaf);
-  const target = official || _TAG_SUB_EXAMPLES[root]?.[0] || leaf;
+  const target = official || _TAG_SUB_EXAMPLES[root]?.[0] || '性格与人格';
   if (!g[target]) g[target] = { parent: root, aliases:[], related:[] };
   else if (!g[target].parent) g[target].parent = root;
   state.tagGraphUpdatedAt = Date.now();
@@ -2897,6 +2917,8 @@ loadSettings();
 loadCompletionConfig();
 maybeSeedExample();
 migrateTaxonomyToPCIC();
+// 一次性清理 localStorage 中的非官方孤儿标签（AI 补全历史遗留）
+_purgeNonOfficialTags();
 startCloudSync();
 render();
 updateAIButton();
