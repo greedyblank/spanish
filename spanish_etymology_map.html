@@ -1933,7 +1933,8 @@ function buildCompletionPrompt(batch) {
   };
   const fieldList = fields.map(f=>`- ${f}: ${fieldDesc[f]||''}`).join('\n');
   const sampleObj = { word: batch[0]?.word||'' }; fields.forEach(f => { if (f==='examples'||f==='related'||f==='tags'||f==='cognates'||f==='roots') sampleObj[f]=[]; else sampleObj[f]=''; });
-  if (hasEmoji) { sampleObj.emoji = ''; fieldList += `\n- emoji: 1-3 个 emoji（呼应词根义），仅输出 emoji 本身`; }
+  let fieldListFull = fieldList;
+  if (hasEmoji) { sampleObj.emoji = ''; fieldListFull += `\n- emoji: 1-3 个 emoji（呼应词根义），仅输出 emoji 本身`; }
   const rootRule = hasRootEntry ? `\n【⚠ 词根/词缀条目特别规则】标【条目·独立词素】的是词根或词缀本身（如 bien-、ven-、-ción）。
 - meaning/analysis 必须描述该词根/词缀「固有的、跨所有派生词通用」的含义与构词作用，绝不能写成某个具体派生词的意思。
   例：ven-(拉丁 venire「来」) 就写「来、到来」，不能因为它出现在 bienvenido 里就写成「欢迎」。
@@ -1948,7 +1949,7 @@ ${rootRule}
 ${wordList}
 
 【任务】只生成下列字段：
-${fieldList}
+${fieldListFull}
 
 【输出】仅严格 JSON：{"results":[${JSON.stringify(sampleObj)}]}
 每个 word 必须与输入对应。`;
