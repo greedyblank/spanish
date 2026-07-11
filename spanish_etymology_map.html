@@ -632,36 +632,26 @@ function _inferRootMeta(root) {
 }
 // 重建标签图：20 个 PCIC 顶级 + 每个叶子归到官方顶级下（尽量保留一层中间子类），去语法污染
 function _rebuildTagGraph() {
-  const oldG = state.tagGraph || {};
   const newG = {};
-  TAG_TAXONOMY_ROOTS.forEach(r => newG[r] = { parent:null, aliases:[], related:[] });
-  const pcicRootOf = (tag) => {
-    const seen = new Set(); let cur = tag, guard = 0;
-    while (cur && oldG[cur] && oldG[cur].parent && !seen.has(cur) && guard++ < 20) { seen.add(cur); cur = oldG[cur].parent; }
-    if (TAG_TAXONOMY_ROOTS.includes(cur)) return cur;
-    return _routeTagToRoot(tag) || null;
-  };
-  // 先清洗每个词条的 tags（拆 "一级>二级" 取叶子、去语法污染），再收集所有叶子标签
-  const allLeaves = new Set();
+  // 1) 预设 20 个 PCIC 一级 + 所有官方二级（确保存在）
+  TAG_TAXONOMY_ROOTS.forEach(r => { newG[r] = { parent:null, aliases:[], related:[] }; });
+  for (const [root, subs] of Object.entries(_TAG_SUB_EXAMPLES)) {
+    const r = root;
+    if (!newG[r]) newG[r] = { parent:null, aliases:[], related:[] };
+    subs.forEach(sub => { if (!newG[sub]) newG[sub] = { parent:r, aliases:[], related:[] }; });
+  }
+  // 2) 清洗每个词条的 tags：强制映射到官方二级（`_ingestTag` 做了路由+截断）
   state.entries.forEach(e => {
-    e.tags = (e.tags||[]).map(t => String(t||'').split(/>|›/).map(s=>s.trim()).filter(Boolean).pop() || '').filter(Boolean)
-                         .filter(t => !_GRAMMAR_POLLUTION.has(t));
+    e.tags = (e.tags||[]).map(t => _ingestTag(String(t||''))).filter(Boolean);
     e.tags = [...new Set(e.tags)];
-    e.tags.forEach(t => allLeaves.add(t));
   });
-  allLeaves.forEach(tag => {
-    if (TAG_TAXONOMY_ROOTS.includes(tag)) return;         // 叶子本身就是顶级
-    const root = pcicRootOf(tag) || '科学与技术';
-    const op = oldG[tag] && oldG[tag].parent;
-    // 若旧父是合法的中间子类（非顶级、非污染、非自身），保留一层：顶级 → 子类 → 叶子
-    if (op && op !== tag && !TAG_TAXONOMY_ROOTS.includes(op) && !_GRAMMAR_POLLUTION.has(op)) {
-      const opRoot = pcicRootOf(op) || root;
-      if (!newG[op]) newG[op] = { parent: opRoot, aliases:[], related:[] };
-      newG[tag] = { parent: op, aliases:[], related:[] };
-    } else {
-      newG[tag] = { parent: root, aliases:[], related:[] };
+  // 3) 删除标签图中不在 PCIC 官方体系的非根、非子节点
+  const officialSet = new Set([...TAG_TAXONOMY_ROOTS, ...Object.values(_TAG_SUB_EXAMPLES).flat()]);
+  for (const k of Object.keys(newG)) {
+    if (newG[k] && newG[k].parent && !officialSet.has(k) && !officialSet.has(newG[k].parent)) {
+      delete newG[k];
     }
-  });
+  }
   state.tagGraph = newG;
   state.tagGraphUpdatedAt = Date.now();
 }
@@ -1270,27 +1260,29 @@ const TAG_TAXONOMY_ROOTS = [
   '健康与卫生','旅行·住宿·交通','经济与工业','科学与技术',
   '政府·政治·社会','艺术活动','宗教与哲学','地理与自然',
 ];
+// PCIC 官方二级子类（全封闭，提示词强制对齐）
+// 来源：https://cvc.cervantes.es/ensenanza/biblioteca_ele/plan_curricular/ — Nociones Específicas
 const _TAG_SUB_EXAMPLES = {
-  '个体·身体维度':['身体部位','生理特征','身体动作','外貌'],
-  '个体·感知与心理':['情绪','性格','感官知觉','思维意识'],
-  '个人身份':['姓名','年龄','性别','国籍','证件'],
-  '人际关系':['家庭','朋友','社交','婚恋','社会角色'],
-  '饮食':['食物','饮料','餐饮','烹饪','餐具'],
-  '教育':['学校','学科','学习','考试','文具'],
-  '工作':['职业','职场','劳动','求职','工具'],
-  '休闲娱乐':['运动','游戏','爱好','旅游','演出'],
-  '信息与媒体':['语言文字','媒体','通讯','出版','网络'],
-  '居住':['房屋','房间','家具','家电','建筑'],
-  '公共服务':['邮政','银行','警务','维修','社会服务'],
-  '购物与商店':['商店','商品','价格','服饰','交易'],
-  '健康与卫生':['疾病','医疗','药物','卫生','身体护理'],
-  '旅行·住宿·交通':['交通工具','道路','住宿','方向','旅程'],
-  '经济与工业':['金钱','市场','产业','农业','贸易'],
-  '科学与技术':['数学','物理','化学','生物','技术','构造'],
-  '政府·政治·社会':['政治','法律','政府','社会问题','军事'],
-  '艺术活动':['音乐','美术','文学','影视','舞蹈'],
-  '宗教与哲学':['宗教','哲学','信仰','伦理','传统'],
-  '地理与自然':['地理','天气','天文','动植物','环境','时间','温度','光'],
+  '个体·身体维度':['身体部位','身体特征','身体动作与姿势','生命周期与生殖'],
+  '个体·感知与心理':['性格与人格','情感与情绪状态','身体感受与知觉','心理状态','礼仪与行为','个人价值观','运气'],
+  '个人身份':['个人资料','证件文件','个人物品'],
+  '人际关系':['家庭关系','社会关系','庆典（家庭/社会/宗教）','态度与行为方式'],
+  '饮食':['膳食与营养','饮品','食物','食谱','菜肴','厨具与餐具','餐厅'],
+  '教育':['教育机构','师生','教育制度','学习与教学','考试与评分','学业与学位','课堂用语','教具与教室家具'],
+  '工作':['职业与职位','工作场所/工具/工装','工作活动','失业与求职','劳动权利与义务','工作者特征'],
+  '休闲娱乐':['空闲与娱乐','演出与展览','体育','游戏'],
+  '信息与媒体':['信息与通讯','书面通信','电话','报刊','电视与广播','互联网'],
+  '居住':['住房相关行为','住房特征','家务活动','家用物品'],
+  '公共服务':['邮政服务','交通服务','金融服务','医疗服务','教育服务','安保服务','社会服务','公共供应服务'],
+  '购物与商店':['场所/人员/活动','服装/鞋/配饰','食品','支付'],
+  '健康与卫生':['健康与疾病','伤创与外伤','症状','医疗机构','医药与药物','卫生','美容'],
+  '旅行·住宿·交通':['旅行','住宿','交通系统'],
+  '经济与工业':['金融与证券','收入','贸易','企业与公司','工业与能源'],
+  '科学与技术':['一般问题','生物学','数学','计算机与新技术','物理与化学'],
+  '政府·政治·社会':['社会','政治与政府','法律与司法','军队'],
+  '艺术活动':['艺术学科与品质','音乐与舞蹈','建筑/雕塑/绘画','文学','摄影','电影与戏剧'],
+  '宗教与哲学':['宗教','哲学'],
+  '地理与自然':['宇宙与空间','地理','城市与乡村空间','气候与天气','动物','植物'],
 };
 // 旧（复用自韩语的通用体系）→ 新 PCIC 顶级映射，供历史数据迁移
 const _OLD_TO_PCIC_ROOT = {
@@ -1302,7 +1294,7 @@ const _OLD_TO_PCIC_ROOT = {
   '历史·宗教·哲学·传统':'宗教与哲学', '语言·文字·思维':'信息与媒体', '抽象概念·数量·关系':'科学与技术',
   '动作·行为·过程':'科学与技术', '状态·性质·变化':'地理与自然', '农业':'经济与工业',
 };
-function _tagTaxonomyText() { return Object.entries(_TAG_SUB_EXAMPLES).map(([r,s],i)=>`   ${i+1}. ${r}：${s.slice(0,4).join('/')}`).join('\n'); }
+function _tagTaxonomyText() { return Object.entries(_TAG_SUB_EXAMPLES).map(([r,subs],i)=>`   ${i+1}. ${r}：${subs.join('/')}`).join('\n'); }
 function _routeTagToRoot(tag) {
   if (!tag) return null;
   if (TAG_TAXONOMY_ROOTS.includes(tag)) return null;      // 本身即顶级
@@ -1333,33 +1325,50 @@ function _routeTagToRoot(tag) {
   for (const [re, root] of R) if (re.test(t)) return root;
   return null;
 }
+// 查找一个叶子标签最匹配的官方 PCIC 二级子类（模糊匹配）
+function _findOfficialSub(root, leaf) {
+  const subs = _TAG_SUB_EXAMPLES[root];
+  if (!subs) return null;
+  if (subs.includes(leaf)) return leaf;
+  // 模糊匹配：标签包含某个官方二级的关键字，或反之
+  for (const s of subs) {
+    if (leaf.includes(s) || s.includes(leaf)) return s;
+  }
+  return null;
+}
 function _ingestTag(rawTag) {
   if (!rawTag) return null;
   const parts = String(rawTag).split(/>|›/).map(s => s.trim()).filter(Boolean);
   if (parts.length === 0) return null;
   const g = state.tagGraph || (state.tagGraph = {});
+  // 确保所有 20 个 PCIC 一级 + 官方二级存在于 tagGraph
+  for (const root of TAG_TAXONOMY_ROOTS) {
+    if (!g[root]) g[root] = { parent:null, aliases:[], related:[] };
+    (_TAG_SUB_EXAMPLES[root]||[]).forEach(sub => { if (!g[sub]) g[sub] = { parent:root, aliases:[], related:[] }; });
+  }
+  // 处理 "一级 > 二级" 格式 → 只取前两级
   if (parts.length >= 2) {
     const root = parts[0];
-    if (!g[root]) g[root] = { parent:null, aliases:[], related:[] };
-    let parent = root;
-    for (let i = 1; i < parts.length; i++) {
-      const n = parts[i];
-      if (!g[n]) g[n] = { parent, aliases:[], related:[] };
-      else if (!g[n].parent) g[n].parent = parent;
-      parent = n;
-    }
+    const leaf = parts[1];   // 强制截断：只取到第二级
+    if (!TAG_TAXONOMY_ROOTS.includes(root)) { return _ingestTag(leaf); }  // 一级不合法 → 当叶子重路由
+    const official = _findOfficialSub(root, leaf);
+    const target = official || leaf;
+    if (!g[target]) g[target] = { parent: root, aliases:[], related:[] };
+    else if (!g[target].parent) g[target].parent = root;
     state.tagGraphUpdatedAt = Date.now();
-    return parts[parts.length-1];
+    return target;
   }
+  // 单个词 → 路由到 PCIC 一级 + 找最匹配的官方二级（或兜底到第一个二级）
   const leaf = parts[0];
+  if (TAG_TAXONOMY_ROOTS.includes(leaf)) return leaf;  // 本身就是一级，不作为叶子标签
   const root = _routeTagToRoot(leaf);
-  if (root) {
-    if (!g[root]) g[root] = { parent:null, aliases:[], related:[] };
-    if (!g[leaf]) g[leaf] = { parent:root, aliases:[], related:[] };
-    else if (!g[leaf].parent) g[leaf].parent = root;
-    state.tagGraphUpdatedAt = Date.now();
-  }
-  return leaf;
+  if (!root) return leaf;
+  const official = _findOfficialSub(root, leaf);
+  const target = official || _TAG_SUB_EXAMPLES[root]?.[0] || leaf;
+  if (!g[target]) g[target] = { parent: root, aliases:[], related:[] };
+  else if (!g[target].parent) g[target].parent = root;
+  state.tagGraphUpdatedAt = Date.now();
+  return target;
 }
 function getAllTags() { const s = new Set(); state.entries.forEach(e => (e.tags||[]).forEach(t => s.add(t))); Object.keys(state.tagGraph||{}).forEach(t => s.add(t)); return [...s].sort(); }
 function resolveTag(t) { return t; }
@@ -2313,7 +2322,7 @@ function refreshAIScanResult() {
 // AI 提示词
 // =========================================================================
 function buildAIEntryPrompt(input, existingTags) {
-  const tagConstraint = `\n【语义标签强制约束（tags 字段）】\ntags 必须是「一级大类 > 二级子类」格式，一级大类为 Instituto Cervantes《Plan Curricular》Nociones Específicas 官方 20 类：\n${_tagTaxonomyText()}\n- 格式示例："饮食 > 甜品"、"旅行·住宿·交通 > 交通工具"、"地理与自然 > 水"\n- 一级大类必须是上面 20 个之一；禁止词性/语法标签\n- 同条目多标签不得同属一大类；1-3 个\n`;
+  const tagConstraint = `\n【语义标签强制约束（tags 字段）】\ntags 必须是「一级大类 > 二级子类」严格两级格式。一级为 PCIC 官方 20 类，二级必须从下列官方子类中选择（不允许自拟、不允许第三级）：\n${_tagTaxonomyText()}\n- 正确示例："饮食 > 食物"、"旅行·住宿·交通 > 交通系统"、"地理与自然 > 气候与天气"\n- 一级大类必须是上面 20 个之一；二级必须是各一级下列出的官方子类之一\n- 禁止词性/语法标签；禁止自造新一级/二级\n- 同条目多标签不得同属一大类；1-3 个\n`;
   return `你是西班牙语历史语言学者、词源专家和优秀语言教师，精通通俗拉丁语、古典拉丁语、古西班牙语、印欧语词根，以及西语构词法（前缀+词根+连接元音+后缀+屈折词尾）。
 
 【读者】西班牙语初学者。所有西语词必须给拉丁化注音（圆括号）；拉丁语词源用斜体或括号注明。
@@ -2367,7 +2376,7 @@ function buildCompletionPrompt(batch) {
     examples:'例句数组，每条"西语 — 中文"',
     related:'同根词数组',
     roots:'附加词根/词缀数组（主词根外还归属的，如 ["re-","con-","-ción"]）',
-    tags:'语义标签数组，必须是「一级大类 > 二级子类」两级格式（一级必须是下列 PCIC 官方 20 类之一，二级自拟具体子类）。20 大类：'+TAG_TAXONOMY_ROOTS.join(' / '),
+    tags:'语义标签数组，必须「一级>二级」两级，二级从各一级下的官方子类中选（禁止自拟）：'+_tagTaxonomyText().replace(/\n/g,' ').replace(/\s+/g,' '),
     pos:'词性（名词/动词/形容词/副词/代词/介词/连词/冠词/数词/感叹词/后缀/前缀/词根，用中文）',
     gender:'阴阳性（m/f，名词/形容词填）',
     etymologyTier:'词源层次',
@@ -2648,21 +2657,22 @@ ${currentGraph}
 【参考顶级分类（共 ${TAG_TAXONOMY_ROOTS.length} 个，强制使用此 20 个为根）】
 ${rootsList}
 
-规则：所有 parent 链最终收敛到上面 20 根之一；禁止造新顶级；看不准按最主要语义归类。
+规则：所有 parent 链最终收敛到 20 根之一；禁止造新顶级。二级子类必须是下列官方 PCIC 子类（**禁止自拟新二级**）：
 
-【任务】构建「一级大类(20根) → 二级子类 → 叶子」层级树：
-- parent: 父标签（20 根之一或已存在标签）
-- aliases: 同义/近义标签
+${_tagTaxonomyText()}
+
+【任务】把每个标签归类到最合适的「一级 > 二级」下：
+- parent: 官方 20 根之一或已有官方二级子类
+- aliases: 同义/近义标签（旧名 → 映射到官方子类 canonical）
 - related: 横向相关
-- 优先建二级子类（如「饮食 > 甜品」「旅行·住宿·交通 > 交通工具」）
 
 【硬性约束】
-1. 最大深度 2 层（根→子类→叶子），叶子到根 ≤ 2 跳
+1. 严格 2 层：叶子→二级（必须为上述官方子类之一）→一级（20 根）。绝不超过 2 层
 2. 必须覆盖全部 ${tagData.length} 个标签
 3. 禁止「其他/杂项/未分类/TODO」万能桶作 parent
 4. 一个标签一个 parent，不循环
-5. 同义词挑一个 canonical，其余 aliases
-6. 随手标签（TODO/重要）挂「教育·学习·知识」
+5. 旧名映射到官方子类后，作为 aliases 保留（方便兼容历史数据）
+6. 随手标签（TODO/重要）挂「教育 > 学习与教学」
 7. **禁止语法类标签**：词性（名词/动词/形容词/sustantivo/verbo/noun/verb）、语种、性数等不是语义标签，从输入过滤掉
 8. **禁止重复子标签**：同一 parent 下 children 互异
 
