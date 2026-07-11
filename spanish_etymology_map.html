@@ -132,6 +132,8 @@
 
   <!-- 搜索栏 -->
   <div class="max-w-[1600px] mx-auto px-4 pb-2.5">
+    <!-- 本地文件同步状态 -->
+    <div id="file-sync-indicator" class="hidden mb-2 text-[10px] flex items-center gap-1.5 font-mono"></div>
     <div class="relative flex items-center gap-1.5">
       <div class="relative flex-1">
         <input id="search-input" type="text" placeholder="搜索：palabra / 拉丁词根 / 释义 / 标签 …  (快捷键 /)"
@@ -332,7 +334,9 @@
       <button onclick="closeSettingsModal(); openAddModal()" class="px-2 py-1 text-[10px] rounded-md bg-[#38bdf8]/15 border border-[#38bdf8]/30 text-[#7dd3fc]">+ 新词条</button>
       <button onclick="closeSettingsModal(); openPasteModal()" class="px-2 py-1 text-[10px] rounded-md bg-[#f43f5e]/15 border border-[#f43f5e]/30 text-[#fda4af]">♨ 粘贴</button>
       <button onclick="closeSettingsModal(); openTagBrowser()" class="px-2 py-1 text-[10px] rounded-md bg-[#34d399]/15 border border-[#34d399]/30 text-[#6ee7b7]">🏷 标签浏览器</button>
+      <button onclick="closeSettingsModal(); repairDataNow()" class="px-2 py-1 text-[10px] rounded-md bg-[#a855f7]/15 border border-[#a855f7]/30 text-[#d8b4fe]" title="拆分组合词根、为词根/词缀建条目、重建 PCIC 两级标签结构">🧹 整理修复</button>
       <button onclick="closeSettingsModal(); openSyncModal()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300">☁️ 多端同步</button>
+      <button onclick="closeSettingsModal(); bindLocalFile()" class="px-2 py-1 text-[10px] rounded-md bg-[#fbbf24]/10 hover:bg-[#fbbf24]/20 border border-[#fbbf24]/30 text-[#fcd34d]" title="绑定本地文件，之后每次修改自动写盘（Chrome/Edge）">📁 绑定本地</button>
       <button onclick="exportJSON()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300">↓ 导出</button>
       <label class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300 cursor-pointer">↑ 导入<input type="file" accept=".json" onchange="importJSON(event)" class="hidden"></label>
       <button onclick="closeSettingsModal(); confirmReset()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 hover:bg-[#f43f5e]/20 border border-white/10 text-slate-400 hover:text-[#fda4af]">↺ 重置</button>
@@ -569,6 +573,105 @@ function migrateTaxonomyToPCIC() {
 }
 
 // =========================================================================
+// 数据自愈 / 规范化（一键把词根条目、异常词根、标签父子结构全部整理干净）
+// 幂等：可反复运行；结果稳定。既在首次加载自动跑一次，也可手动触发。
+// =========================================================================
+const DATA_REPAIR_KEY = 'spanish_data_repair_v2';
+const _GRAMMAR_POLLUTION = new Set(['名词','动词','形容词','副词','代词','介词','连词','冠词','数词','感叹词','后缀','前缀','词根','m','f','阳','阴','阳性','阴性','sustantivo','verbo','adjetivo','adverbio','noun','verb','adj','西班牙语','拉丁语','英语','中文']);
+// 从派生词聚合某词根的代表性元信息（rootMeaning/latinOrigin 是词根级共享信息，可用作词根条目初值）
+function _inferRootMeta(root) {
+  const derived = state.entries.filter(e => e.word !== root && !e.rootless && getRootKeys(e).includes(root));
+  const withMeaning = derived.find(e => e.rootMeaning);
+  const withLatin = derived.find(e => e.latinOrigin);
+  return { rootMeaning: (withMeaning&&withMeaning.rootMeaning)||'', latinOrigin: (withLatin&&withLatin.latinOrigin)||'' };
+}
+// 重建标签图：20 个 PCIC 顶级 + 每个叶子归到官方顶级下（尽量保留一层中间子类），去语法污染
+function _rebuildTagGraph() {
+  const oldG = state.tagGraph || {};
+  const newG = {};
+  TAG_TAXONOMY_ROOTS.forEach(r => newG[r] = { parent:null, aliases:[], related:[] });
+  const pcicRootOf = (tag) => {
+    const seen = new Set(); let cur = tag, guard = 0;
+    while (cur && oldG[cur] && oldG[cur].parent && !seen.has(cur) && guard++ < 20) { seen.add(cur); cur = oldG[cur].parent; }
+    if (TAG_TAXONOMY_ROOTS.includes(cur)) return cur;
+    return _routeTagToRoot(tag) || null;
+  };
+  // 先清洗每个词条的 tags（拆 "一级>二级" 取叶子、去语法污染），再收集所有叶子标签
+  const allLeaves = new Set();
+  state.entries.forEach(e => {
+    e.tags = (e.tags||[]).map(t => String(t||'').split(/>|›/).map(s=>s.trim()).filter(Boolean).pop() || '').filter(Boolean)
+                         .filter(t => !_GRAMMAR_POLLUTION.has(t));
+    e.tags = [...new Set(e.tags)];
+    e.tags.forEach(t => allLeaves.add(t));
+  });
+  allLeaves.forEach(tag => {
+    if (TAG_TAXONOMY_ROOTS.includes(tag)) return;         // 叶子本身就是顶级
+    const root = pcicRootOf(tag) || '科学与技术';
+    const op = oldG[tag] && oldG[tag].parent;
+    // 若旧父是合法的中间子类（非顶级、非污染、非自身），保留一层：顶级 → 子类 → 叶子
+    if (op && op !== tag && !TAG_TAXONOMY_ROOTS.includes(op) && !_GRAMMAR_POLLUTION.has(op)) {
+      const opRoot = pcicRootOf(op) || root;
+      if (!newG[op]) newG[op] = { parent: opRoot, aliases:[], related:[] };
+      newG[tag] = { parent: op, aliases:[], related:[] };
+    } else {
+      newG[tag] = { parent: root, aliases:[], related:[] };
+    }
+  });
+  state.tagGraph = newG;
+  state.tagGraphUpdatedAt = Date.now();
+}
+function repairData(opts={}) {
+  const report = { splitRoots:0, clearedOrphans:0, createdRootEntries:0, strippedTags:0 };
+  // 1) 规范化每个词条的 root / roots：拆组合词根、去重、主根不入 roots[]
+  state.entries.forEach(e => {
+    if (isRootEntry(e)) return;   // 词根条目本身不动其 root
+    let primary = String(e.root||'').trim();
+    let extra = Array.isArray(e.roots) ? e.roots.map(s=>String(s||'').trim()).filter(Boolean) : [];
+    if (primary.includes('/') || primary.includes(' ')) {   // 组合词根 luc-/luz → 拆
+      const parts = primary.split(/[\/\s]+/).filter(Boolean);
+      primary = parts[0] || '';
+      extra = [...extra, ...parts.slice(1)];
+      report.splitRoots++;
+    }
+    extra = [...new Set(extra.flatMap(r => r.includes('/')?r.split(/[\/\s]+/):[r]).filter(Boolean))].filter(r => r !== primary);
+    e.root = primary; e.roots = extra;
+    if (e.rootless && (primary || extra.length)) { e.rootless = false; report.clearedOrphans++; }
+  });
+  // 2) 为每个被引用但无自身条目的词根/词缀创建真实条目（stub，供 AI 补全其固有含义）
+  const referenced = new Set();
+  state.entries.forEach(e => { if (!e.rootless) getRootKeys(e).forEach(r => referenced.add(r)); });
+  referenced.forEach(root => {
+    if (root === ORPHAN_KEY) return;
+    if (findRootEntry(root)) return;
+    const isAffix = classifyRoot(root) === 'affix';
+    const inf = _inferRootMeta(root);
+    state.entries.push({
+      id: uid(), word: root, pos: isAffix ? (root.startsWith('-') ? '后缀' : '前缀') : '词根',
+      root: root, roots: [], rootMeaning: inf.rootMeaning, latinOrigin: inf.latinOrigin,
+      meaning: '', breakdown: '', analysis: '', etymology: '', englishCognate: '', cognates: [],
+      etymologyTier: '', examples: [], related: [], tags: [], notes: '', gender: '', frequency: '',
+      createdAt: Date.now(), updatedAt: Date.now(),
+    });
+    report.createdRootEntries++;
+  });
+  // 3) 重建标签图（干净的 PCIC 两级结构 + 去语法污染）
+  const tagsBefore = JSON.stringify(state.entries.map(e=>e.tags));
+  _rebuildTagGraph();
+  if (JSON.stringify(state.entries.map(e=>e.tags)) !== tagsBefore) report.strippedTags = 1;
+  save();
+  localStorage.setItem(DATA_REPAIR_KEY, '1');
+  return report;
+}
+function repairDataNow() {
+  const r = repairData({ manual:true });
+  render();
+  const msg = `已整理：拆分组合词根 ${r.splitRoots} · 新建词根条目 ${r.createdRootEntries} · 清理孤儿 ${r.clearedOrphans} · 标签结构已重建`;
+  toast(msg, 'success');
+  const incomplete = state.entries.filter(e => isRootEntry(e) && !e.analysis).length;
+  if (incomplete) setTimeout(()=>toast(`有 ${incomplete} 个词根/词缀条目待补全含义，可点「✨ AI 补全」批量填充`,'info'), 800);
+}
+
+// =========================================================================
 // 同步 payload（Gist）
 // =========================================================================
 const SETTINGS2 = {};
@@ -730,6 +833,125 @@ function saveSyncSettings() {
   saveSyncConfig(); closeSyncModal();
   toast(syncReady()?'同步设置已保存':'已保存（还需 Token + Gist ID）','success');
   startCloudSync();
+}
+
+// =========================================================================
+// FILE SYNC · 本地文件实时备份（File System Access API）
+//   绑定后每次 save() 自动写盘，防清缓存丢数据；句柄存 IndexedDB 跨会话保留
+//   仅 Chrome/Edge 支持；与 Gist 同步并存不冲突。移植自韩/日姊妹项目。
+// =========================================================================
+const fileSyncState = { handle: null, lastSync: 0, syncScheduled: false };
+const FILE_HANDLE_DB = 'spanish_etymology_fs';
+const FILE_HANDLE_STORE = 'handles';
+const FILE_HANDLE_KEY = 'main';
+function _fsSupported() { return typeof window !== 'undefined' && 'showSaveFilePicker' in window; }
+function _idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(FILE_HANDLE_DB, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(FILE_HANDLE_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function _idbSaveHandle(handle) {
+  const db = await _idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(FILE_HANDLE_STORE, 'readwrite');
+    tx.objectStore(FILE_HANDLE_STORE).put(handle, FILE_HANDLE_KEY);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function _idbLoadHandle() {
+  try {
+    const db = await _idbOpen();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(FILE_HANDLE_STORE, 'readonly');
+      const req = tx.objectStore(FILE_HANDLE_STORE).get(FILE_HANDLE_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  } catch(e) { return null; }
+}
+async function _idbClearHandle() {
+  try {
+    const db = await _idbOpen();
+    return new Promise((resolve) => {
+      const tx = db.transaction(FILE_HANDLE_STORE, 'readwrite');
+      tx.objectStore(FILE_HANDLE_STORE).delete(FILE_HANDLE_KEY);
+      tx.oncomplete = () => resolve(); tx.onerror = () => resolve();
+    });
+  } catch(e) {}
+}
+async function verifyPermission(handle) {
+  const opts = { mode: 'readwrite' };
+  if ((await handle.queryPermission(opts)) === 'granted') return true;
+  if ((await handle.requestPermission(opts)) === 'granted') return true;
+  return false;
+}
+async function bindLocalFile() {
+  if (!_fsSupported()) { toast('当前浏览器不支持文件写入。请用 Chrome/Edge，或继续用 ↓ 导出 手动备份','error'); return; }
+  try {
+    const handle = await window.showSaveFilePicker({
+      suggestedName: 'spanish_etymology_backup.json',
+      types: [{ description: 'JSON 备份', accept: { 'application/json': ['.json'] } }],
+    });
+    fileSyncState.handle = handle;
+    await _idbSaveHandle(handle);
+    await syncToFile(true);
+    updateFileSyncStatus();
+    toast(`✓ 已绑定文件：${handle.name}（每次修改自动写盘）`,'success');
+  } catch(e) { if (e.name !== 'AbortError') toast('绑定失败：'+e.message,'error'); }
+}
+async function unbindLocalFile() {
+  if (!fileSyncState.handle) return;
+  if (!confirm('解除本地文件绑定？\n（不会删除已写入的文件，只是不再自动同步）')) return;
+  fileSyncState.handle = null;
+  await _idbClearHandle();
+  updateFileSyncStatus();
+  toast('已解除绑定','info');
+}
+async function syncToFile(force=false) {
+  if (!fileSyncState.handle) return;
+  try {
+    if (!(await verifyPermission(fileSyncState.handle))) return;
+    const data = { entries: state.entries, tagGraph: state.tagGraph||{}, tombstones: state.tombstones||[], version: 1, exportedAt: new Date().toISOString() };
+    const writable = await fileSyncState.handle.createWritable();
+    await writable.write(JSON.stringify(data, null, 2));
+    await writable.close();
+    fileSyncState.lastSync = Date.now();
+    if (force) updateFileSyncStatus();
+  } catch(e) {
+    console.error('File sync failed:', e);
+    if (e.name === 'NotAllowedError') { toast('文件写入权限丢失，请重新绑定','error'); fileSyncState.handle = null; await _idbClearHandle(); updateFileSyncStatus(); }
+  }
+}
+function syncToFileDebounced() {
+  if (!fileSyncState.handle || fileSyncState.syncScheduled) return;
+  fileSyncState.syncScheduled = true;
+  setTimeout(() => { fileSyncState.syncScheduled = false; syncToFile(); }, 600);
+}
+function updateFileSyncStatus() {
+  const el = document.getElementById('file-sync-indicator');
+  if (!el) return;
+  if (fileSyncState.handle) {
+    const t = fileSyncState.lastSync ? new Date(fileSyncState.lastSync).toTimeString().slice(0,5) : '—';
+    el.classList.remove('hidden');
+    el.innerHTML = `<span class="w-1.5 h-1.5 rounded-full bg-[#34d399] inline-block"></span><span class="text-[#6ee7b7]">已同步到本地文件</span><span class="text-slate-600">${escapeHtml(fileSyncState.handle.name)}</span><span class="text-slate-700">${t}</span><button onclick="unbindLocalFile()" class="text-slate-500 hover:text-[#fda4af] ml-1" title="解除绑定">✕</button>`;
+  } else if (_fsSupported()) {
+    el.classList.remove('hidden');
+    el.innerHTML = `<button onclick="bindLocalFile()" class="text-[#fcd34d] hover:underline">📁 绑定本地文件（自动写盘防丢失）</button>`;
+  } else {
+    el.classList.add('hidden');
+  }
+}
+async function restoreFileSync() {
+  if (!_fsSupported()) { updateFileSyncStatus(); return; }
+  const handle = await _idbLoadHandle();
+  if (!handle) { updateFileSyncStatus(); return; }
+  fileSyncState.handle = handle;
+  if (await verifyPermission(handle)) { updateFileSyncStatus(); toast(`已恢复本地文件同步：${handle.name}`,'info'); }
+  else { updateFileSyncStatus(); }   // 句柄在但权限待重新授权，下次写入时再请求
 }
 
 // =========================================================================
@@ -1092,7 +1314,7 @@ function emptyHint(title, sub='') { return `<div class="empty-hint"><div class="
 
 // save() 钩到 cloud sync
 const _origSave = save;
-save = function() { _origSave(); scheduleCloudSync(); };
+save = function() { _origSave(); if (fileSyncState.handle) syncToFileDebounced(); scheduleCloudSync(); };
 
 // =========================================================================
 // RENDER · 字母导图
@@ -2399,6 +2621,7 @@ startCloudSync();
 render();
 updateAIButton();
 updateSyncStatusUI();
+restoreFileSync();   // 恢复已绑定的本地文件（异步，不阻塞首屏）
 </script>
 </body>
 </html>
