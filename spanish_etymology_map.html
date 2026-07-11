@@ -246,12 +246,14 @@
       <div class="grid grid-cols-2 gap-3">
         <div><label class="text-xs text-slate-400 block mb-1">单词 Palabra *</label><input id="add-word" type="text" placeholder="如 helado" class="w-full rounded-lg px-3 py-2"></div>
         <div><label class="text-xs text-slate-400 block mb-1">词性 POS</label>
-          <select id="add-pos" class="w-full rounded-lg px-3 py-2" onchange="renderGrammarFields()"><option value="">—</option><option>名词</option><option>动词</option><option>形容词</option><option>副词</option><option>代词</option><option>介词</option><option>连词</option><option>冠词</option><option>数词</option><option>感叹词</option><option>后缀</option><option>前缀</option><option>词根</option></select></div>
+          <select id="add-pos" class="w-full rounded-lg px-3 py-2"><option value="">—</option><option>名词</option><option>动词</option><option>形容词</option><option>副词</option><option>代词</option><option>介词</option><option>连词</option><option>冠词</option><option>数词</option><option>感叹词</option><option>后缀</option><option>前缀</option><option>词根</option></select></div>
       </div>
-      <div class="grid grid-cols-2 gap-3">
+      <div class="grid grid-cols-3 gap-3">
         <div><label class="text-xs text-slate-400 block mb-1">发音 IPA（国际音标）</label><input id="add-ipa" type="text" placeholder="/eˈla.ðo/" class="w-full rounded-lg px-3 py-2"></div>
         <div><label class="text-xs text-slate-400 block mb-1">阴阳性</label>
           <select id="add-gender" class="w-full rounded-lg px-3 py-2"><option value="">—</option><option>m</option><option>f</option></select></div>
+        <div><label class="text-xs text-slate-400 block mb-1">人称（仅动词）</label>
+          <select id="add-person" class="w-full rounded-lg px-3 py-2"><option value="">—</option><option>第一人称</option><option>第二人称</option><option>第三人称</option><option>无人称</option></select></div>
       </div>
       <div class="grid grid-cols-3 gap-3">
         <div><label class="text-xs text-slate-400 block mb-1">主词根 Raíz</label><input id="add-root" type="text" placeholder="hel-" class="w-full rounded-lg px-3 py-2"></div>
@@ -270,7 +272,6 @@
         <div><label class="text-xs text-slate-400 block mb-1">词源层次</label>
           <select id="add-etymologyTier" class="w-full rounded-lg px-3 py-2"><option value="">—</option><option>通俗拉丁语继承词</option><option>古典拉丁语借词</option><option>希腊语来源</option><option>阿拉伯语来源</option><option>日耳曼语来源</option><option>法语借词</option><option>意大利语借词</option><option>英语借词</option><option>美洲原住民语言</option><option>内部新造词</option></select></div>
       </div>
-      <details id="grammar-fields-group" class="mb-3"><summary class="text-xs text-[#d8b4fe] cursor-pointer select-none">📐 语法属性（按词性动态显示）</summary><div class="grid grid-cols-3 gap-3 mt-2" id="grammar-fields-container"></div></details>
       <div><label class="text-xs text-slate-400 block mb-1">相关词 Related（空格分隔）</label><input id="add-related" type="text" placeholder="helar helada hielo" class="w-full rounded-lg px-3 py-2"></div>
       <div><label class="text-xs text-slate-400 block mb-1">例句 Examples（每行一条："西语 — 中文"）</label><textarea id="add-examples" rows="3" placeholder="Quiero un helado. — 我想要一个冰淇淋" class="w-full rounded-lg px-3 py-2"></textarea></div>
       <div><label class="text-xs text-slate-400 block mb-1">标签 Tags（空格分隔，格式「一级大类 > 二级子类」，PCIC 官方分类）</label><input id="add-tags" type="text" placeholder="饮食 > 甜品" class="w-full rounded-lg px-3 py-2"></div>
@@ -1639,7 +1640,7 @@ function renderWordsList() {
   const titleEl = document.getElementById('words-title');
   const countEl = document.getElementById('words-count');
   const tagPills = (e) => (e.tags||[]).slice(0,3).map(t => { const ch = getTagChain(t)||[t]; return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="event.stopPropagation();onTagClick('${escapeHtml(c).replace(/'/g,"\\'")}',event)">${escapeHtml(c)}</span>`).join('<span class="text-white/50 mx-0.5">▸</span>'); }).join('<span class="text-slate-500 mx-1.5">|</span>');
-  const badges = (e) => [e.pos?`<span class="text-[9px] px-1 rounded ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:'', (e.gender&&e.pos!=='动词'&&e.pos!=='副词'&&!isRootEntry(e))?`<span class="text-[9px] px-1 rounded font-bold ${genderBadge(e.gender)}">${genderLabel(e.gender)}</span>`:''].filter(Boolean).join(' ');
+  const badges = (e) => [e.pos?`<span class="text-[9px] px-1 rounded ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:'', (e.gender&&e.pos!=='动词'&&e.pos!=='副词'&&!isRootEntry(e))?`<span class="text-[9px] px-1 rounded font-bold ${genderBadge(e.gender)}">${genderLabel(e.gender)}</span>`:'', e.person?`<span class="text-[9px] px-1 rounded bg-[#22d3ee]/15 text-[#67e8f9] border border-[#22d3ee]/30">${escapeHtml(e.person)}</span>`:''].filter(Boolean).join(' ');
   const cardHtml = (e) => {
     const active = state.selectedEntryId === e.id ? 'active' : '';
     const meta = [];
@@ -1718,46 +1719,24 @@ function _sortKey(word) { return word && word.startsWith('-') ? word.slice(1) : 
 // =========================================================================
 // RENDER · 详情面板
 // =========================================================================
-// 语法徽章行（一期：PCIC 文档建议的词汇属性标签）——灰色小 badge，与词性/阴阳性区分
-const _GRAMMAR_LABELS = { countability:'可数性', transitivity:'及物性', nounType:'名词子类', concreteness:'具体性', animacy:'有生性', adjType:'形容词子类', lexicalAspect:'词汇体', cefr:'CEFR', connotation:'感情色彩', agreementNote:'一致说明' };
-function _grammarBadges(e) {
-  const g = e.grammar || {};
-  const badges = [];
-  for (const [k, v] of Object.entries(g)) {
-    if (!v) continue;
-    const label = _GRAMMAR_LABELS[k] || k;
-    if (k === 'agreementNote') badges.push(`<span class="text-[10px] px-1.5 py-0.5 rounded bg-[#6366f1]/10 text-[#c7d2fe] border border-[#6366f1]/20" title="${escapeHtml(v)}">${escapeHtml(v)}</span>`);
-    else badges.push(`<span class="text-[10px] px-1 py-0.5 rounded bg-white/[0.04] text-slate-400 border border-white/10">${escapeHtml(v)}</span>`);
-  }
-  return badges.join(' ');
-}
-// 详情面板折叠块 helper
-function _detailSection(title, icon, content, open=false) {
-  if (!content) return '';
-  return `<details class="mb-3 group" ${open?'open':''}>
-    <summary class="text-[10px] text-slate-400 uppercase tracking-wider cursor-pointer select-none hover:text-slate-200 transition">${icon} ${title} <span class="text-slate-600 text-[9px] ml-1">▸ 展开</span></summary>
-    <div class="mt-2">${content}</div>
-  </details>`;
-}
 function renderDetail() {
   const panel = document.getElementById('detail-panel');
+  // 未选词条但有高亮词根 → 显示「词根详情」（西语特色：词根本身是独立语言单位）
   if (!state.selectedEntryId && state.highlightRoot) { renderRootDetail(panel, state.highlightRoot); return; }
   if (!state.selectedEntryId) { panel.innerHTML = emptyHint('← 选择一个词条','查看词根拆解、拉丁语源、词族与同源词；或单击左侧词根看词族总览'); return; }
   const e = state.entries.find(x => x.id === state.selectedEntryId);
   if (!e) { panel.innerHTML = emptyHint('词条不存在',''); return; }
   const tagPills = (e.tags||[]).map(t => { const ch = getTagChain(t)||[t]; const tip = ch.join(' › '); return ch.map(c => `<span class="tag-pill${tagCloudState.selectedTag===c?' selected':''}" onclick="goToTag('${escapeHtml(c).replace(/'/g,"\\'")}',event)" title="${escapeHtml(tip)}">${escapeHtml(c)}</span>`).join('<span class="text-white/50 mx-0.5">▸</span>'); }).join('<span class="text-slate-500 mx-1.5">|</span>');
-  const gBadges = _grammarBadges(e);
-  const pronContent = (e.ipa||e.pronNote) ? `${e.ipa?`<div class="text-[15px] text-[#7dd3fc] font-mono mb-1">${escapeHtml(e.ipa)}</div>`:''}${e.pronNote?`<div class="text-[12px] text-slate-400 leading-relaxed">${escapeHtml(e.pronNote)}</div>`:''}` : '';
-  const morphContent = e.breakdown ? `<div class="leading-loose">${renderMorphology(e.breakdown)}</div>` : '';
-  const analysisContent = e.analysis ? `<div class="text-[13px] text-slate-100 leading-relaxed bg-gradient-to-br from-[#a855f7]/10 to-[#ec4899]/5 px-3 py-2 rounded-lg border border-[#a855f7]/20 whitespace-pre-wrap">${escapeHtml(e.analysis)}</div>` : '';
-  const etymologyContent = e.etymology ? `<div class="text-[13px] text-slate-200 leading-relaxed bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15 whitespace-pre-wrap">${escapeHtml(e.etymology)}</div>` : '';
-  const examplesContent = (e.examples||[]).length ? `<div class="space-y-1">${e.examples.map(ex=>`<div class="flex items-center gap-1 text-[13px] pl-2 border-l-2 border-[#34d399]/40"><span class="text-slate-100 flex-1">${escapeHtml(ex)}</span>${playButton(ex.split('—')[0]?.trim()||ex,'xs')}</div>`).join('')}</div>` : '';
+  // 发音区
+  const pronHtml = (e.ipa || e.pronNote) ? `<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">发音 Pronunciación</div>${e.ipa?`<div class="text-[15px] text-[#7dd3fc] font-mono mb-1">${escapeHtml(e.ipa)}</div>`:''}${e.pronNote?`<div class="text-[12px] text-slate-400 leading-relaxed">${escapeHtml(e.pronNote)}</div>`:''}</div>` : '';
+  // 形态拆解可视化
+  const morphHtml = e.breakdown ? `<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">形态拆解 Morfología（点语素跳转）</div><div class="leading-loose">${renderMorphology(e.breakdown)}</div></div>` : '';
+  // 同根词：库内已有则显示释义+发音并可点击跳转；库外仅显示词形。每条后加小播放按钮（#2）
   const relatedHtml = (e.related||[]).map(r => {
     const hit = state.entries.find(x => x.word === r);
-    if (hit) return `<span class="text-[11px] px-2 py-0.5 rounded bg-[#34d399]/10 text-[#6ee7b7] border border-[#34d399]/30 cursor-pointer hover:border-[#34d399]/60 inline-flex items-center gap-1" onclick="selectEntry('${hit.id}')"><span>${escapeHtml(r)}${hit.ipa?` <span class="text-slate-500 font-mono">${escapeHtml(hit.ipa)}</span>`:''}${hit.meaning?` <span class="text-slate-400">${escapeHtml(hit.meaning.split(/[;；]/)[0].slice(0,12))}</span>`:''}</span>${playButton(r,'xs')}</span>`;
-    return `<span class="text-[11px] px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10">${escapeHtml(r)}</span>`;
+    if (hit) return `<span class="text-[11px] px-2 py-0.5 rounded bg-[#34d399]/10 text-[#6ee7b7] border border-[#34d399]/30 cursor-pointer hover:border-[#34d399]/60 inline-flex items-center gap-1" onclick="selectEntry('${hit.id}')" title="${escapeHtml((hit.meaning||'').slice(0,30))}${hit.ipa?' '+escapeHtml(hit.ipa):''}"><span>${escapeHtml(r)}${hit.ipa?` <span class="text-slate-500 font-mono">${escapeHtml(hit.ipa)}</span>`:''}${hit.meaning?` <span class="text-slate-400">${escapeHtml(hit.meaning.split(/[;；]/)[0].slice(0,12))}</span>`:''}</span>${playButton(r,'xs')}</span>`;
+    return `<span class="text-[11px] px-2 py-0.5 rounded bg-white/5 text-slate-400 border border-white/10" title="库中暂无该词条">${escapeHtml(r)}</span>`;
   }).join(' ');
-  const relatedContent = (e.related||[]).length ? `<div class="flex flex-wrap gap-1.5">${relatedHtml}</div>` : '';
   panel.innerHTML = `
     <div class="fade-in">
       <div class="mb-3">
@@ -1768,7 +1747,6 @@ function renderDetail() {
           ${e.pos?`<span class="text-[10px] px-1.5 py-0.5 rounded-full ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:''}
           ${(e.gender&&e.pos!=='动词'&&e.pos!=='副词'&&!isRootEntry(e))?`<span class="text-[10px] px-1.5 py-0.5 rounded-full font-bold ${genderBadge(e.gender)}">${genderLabel(e.gender)}</span>`:''}
           ${e.frequency?`<span class="text-[10px] px-1.5 py-0.5 rounded-full bg-[#34d399]/15 text-[#6ee7b7] border border-[#34d399]/30">${escapeHtml(e.frequency)}</span>`:''}
-          ${gBadges?`${gBadges}`:''}
           <div class="flex gap-1 ml-auto shrink-0">
             <button onclick="openAIModal('${e.id}')" class="px-2 py-1 text-[10px] rounded-md bg-gradient-to-r from-[#a855f7]/20 to-[#ec4899]/20 border border-[#a855f7]/40 text-[#d8b4fe]" title="只补全这一个词条">✨ AI补全</button>
             <button onclick="editEntry('${e.id}')" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300">✎ 编辑</button>
@@ -1781,19 +1759,20 @@ function renderDetail() {
           ${e.latinOrigin?`<span>· 拉丁 <span class="text-[#fbbf24] italic">${escapeHtml(e.latinOrigin)}</span></span>`:''}
           ${e.etymologyTier?`<span class="px-1.5 py-0.5 rounded-full bg-[#38bdf8]/10 text-[#7dd3fc] border border-[#38bdf8]/20">${escapeHtml(e.etymologyTier)}</span>`:''}
           ${e.verbClass?`<span class="px-1.5 py-0.5 rounded-full bg-[#fb7185]/15 text-[#fda4af] border border-[#fb7185]/30">${escapeHtml(e.verbClass)}</span>`:''}
+          ${e.person?`<span class="px-1.5 py-0.5 rounded-full bg-[#22d3ee]/15 text-[#67e8f9] border border-[#22d3ee]/30">${escapeHtml(e.person)}</span>`:''}
           ${e.regularity?`<span class="px-1.5 py-0.5 rounded-full bg-[#fbbf24]/15 text-[#fde68a] border border-[#fbbf24]/30">${escapeHtml(e.regularity)}</span>`:''}
           ${e.register&&e.register!=='中性'?`<span class="px-1.5 py-0.5 rounded-full bg-[#22d3ee]/15 text-[#67e8f9] border border-[#22d3ee]/30">${escapeHtml(e.register)}</span>`:''}
           ${e.region&&e.region!=='通用'?`<span class="px-1.5 py-0.5 rounded-full bg-[#8b5cf6]/15 text-[#c4b5fd] border border-[#8b5cf6]/30">${escapeHtml(e.region)}方言</span>`:''}
         </div>
       </div>
       <div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-2">释义 Significado</div><div class="text-[13px] text-[#fde68a] leading-relaxed">${escapeHtml((e.meaning||'').trim())||'<span class="text-slate-500 text-[12px] italic">（无）</span>'}</div></div>
-      ${_detailSection('发音 Pronunciación','🔊',pronContent,!!e.ipa)}
-      ${_detailSection('形态拆解 Morfología','🧩',morphContent,!!e.breakdown)}
-      ${_detailSection('词根语义分析','🎯',analysisContent)}
-      ${_detailSection('词源追溯 Etimología','📜',etymologyContent)}
+      ${pronHtml}
+      ${morphHtml}
+      ${e.analysis?`<div class="mb-4"><div class="text-[10px] text-[#d8b4fe] uppercase tracking-wider mb-1">🎯 词根语义分析</div><div class="text-[13px] text-slate-100 leading-relaxed bg-gradient-to-br from-[#a855f7]/10 to-[#ec4899]/5 px-3 py-2 rounded-lg border border-[#a855f7]/20 whitespace-pre-wrap">${escapeHtml(e.analysis)}</div></div>`:''}
+      ${e.etymology?`<div class="mb-4"><div class="text-[10px] text-[#fbbf24] uppercase tracking-wider mb-1">📜 词源追溯 Etimología</div><div class="text-[13px] text-slate-200 leading-relaxed bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15 whitespace-pre-wrap">${escapeHtml(e.etymology)}</div></div>`:''}
       ${renderCognatesBlock(e)}
-      ${_detailSection('例句 Ejemplos','💬',examplesContent)}
-      ${_detailSection('同根词 Familia','🔗',relatedContent)}
+      ${(e.examples||[]).length?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">💬 例句 Ejemplos</div><div class="space-y-1">${e.examples.map(ex=>`<div class="flex items-center gap-1 text-[13px] pl-2 border-l-2 border-[#34d399]/40"><span class="text-slate-100 flex-1">${escapeHtml(ex)}</span>${playButton(ex.split('—')[0]?.trim()||ex,'xs')}</div>`).join('')}</div></div>`:''}
+      ${(e.related||[]).length?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">🔗 同根词 Familia（库内可点击）</div><div class="flex flex-wrap gap-1.5">${relatedHtml}</div></div>`:''}
       ${tagPills?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">标签 Tags</div><div>${tagPills}</div></div>`:''}
       ${e.notes?`<div class="mb-4"><div class="text-[10px] text-slate-400 uppercase tracking-wider mb-1">📝 笔记</div><div class="text-[13px] text-slate-300 italic bg-[#fbbf24]/[0.04] px-3 py-2 rounded-lg border border-[#fbbf24]/15">${escapeHtml(e.notes)}</div></div>`:''}
     </div>`;
@@ -2067,6 +2046,7 @@ function openAddModal(entry=null) {
   document.getElementById('add-pos').value = entry?.pos||'';
   document.getElementById('add-ipa').value = entry?.ipa||'';
   document.getElementById('add-gender').value = entry?.gender||'';
+  document.getElementById('add-person').value = entry?.person||'';
   document.getElementById('add-pronNote').value = entry?.pronNote||'';
   document.getElementById('add-root').value = entry?.root||'';
   document.getElementById('add-roots').value = (entry?.roots||[]).join(' ');
@@ -2084,46 +2064,6 @@ function openAddModal(entry=null) {
   document.getElementById('add-tags').value = (entry?.tags||[]).join(' ');
   document.getElementById('add-notes').value = entry?.notes||'';
   document.getElementById('add-modal').classList.remove('hidden');
-  renderGrammarFields();
-  // 回填 grammar 字段
-  const g = entry?.grammar || {};
-  ['countability','transitivity','nounType','concreteness','animacy','adjType','lexicalAspect','cefr','connotation'].forEach(k => {
-    const el = document.getElementById('add-'+k); if (el) el.value = g[k]||'';
-  });
-  const anEl = document.getElementById('add-agreementNote'); if (anEl) anEl.value = g['agreementNote']||'';
-}
-const GRAMMAR_OPTIONS = {
-  countability: ['可数','不可数','视语境'],
-  transitivity: ['及物','不及物','双及物','系动词','代词式'],
-  nounType: ['普通名词','专有名词','集合名词'],
-  concreteness: ['具体','抽象'],
-  animacy: ['有生-人类','有生-动物','无生'],
-  adjType: ['性质','关系','国籍'],
-  lexicalAspect: ['状态','活动','完成过程','瞬间达成'],
-  cefr: ['A1','A2','B1','B2','C1','C2'],
-  connotation: ['褒义','贬义','中性'],
-};
-function renderGrammarFields() {
-  const pos = document.getElementById('add-pos')?.value || '';
-  const container = document.getElementById('grammar-fields-container');
-  if (!container) return;
-  const fields = [];
-  if (pos==='名词') fields.push('countability','concreteness','nounType','animacy');
-  else if (pos==='动词') fields.push('transitivity','lexicalAspect');
-  else if (pos==='形容词') fields.push('adjType');
-  if (pos==='名词'||pos==='动词'||pos==='形容词'||pos==='副词') fields.push('cefr','connotation');
-  if (pos==='名词') fields.push('agreementNote');
-  if (!fields.length) { container.innerHTML = '<span class="text-[10px] text-slate-600">当前词性无需语法属性</span>'; return; }
-  const html = fields.map(k => {
-    const opts = GRAMMAR_OPTIONS[k];
-    if (opts) {
-      return `<div><label class="text-xs text-slate-400 block mb-1">${COMPLETION_FIELD_META[k]?.label||k}</label>
-        <select id="add-${k}" class="w-full rounded-lg px-3 py-2"><option value="">—</option>${opts.map(o=>`<option>${o}</option>`).join('')}</select></div>`;
-    }
-    return `<div><label class="text-xs text-slate-400 block mb-1">${COMPLETION_FIELD_META[k]?.label||k}</label>
-      <input id="add-${k}" type="text" class="w-full rounded-lg px-3 py-2" placeholder="如：mano 以 -o 结尾但是阴性"></div>`;
-  }).join('');
-  container.innerHTML = html;
 }
 function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
 function editEntry(id) { const e = state.entries.find(x=>x.id===id); if(e) openAddModal(e); }
@@ -2255,6 +2195,7 @@ function saveEntry() {
     pos: document.getElementById('add-pos').value,
     ipa: document.getElementById('add-ipa').value.trim(),
     gender: document.getElementById('add-gender').value,
+    person: document.getElementById('add-person').value,
     pronNote: document.getElementById('add-pronNote').value.trim(),
     root: document.getElementById('add-root').value.trim(),
     roots: document.getElementById('add-roots').value.trim().split(/\s+/).filter(Boolean),
@@ -2272,7 +2213,6 @@ function saveEntry() {
     examples: document.getElementById('add-examples').value.split('\n').map(s=>s.trim()).filter(Boolean),
     tags,
     notes: document.getElementById('add-notes').value.trim(),
-    grammar: (()=>{ const g={}; ['countability','transitivity','nounType','concreteness','animacy','adjType','lexicalAspect','cefr','connotation'].forEach(k=>{ const el=document.getElementById('add-'+k); if(el&&el.value) g[k]=el.value; }); const an=document.getElementById('add-agreementNote'); if(an&&an.value.trim()) g.agreementNote=an.value.trim(); return Object.keys(g).length?g:undefined; })(),
     createdAt: existing?.createdAt || Date.now(),
     updatedAt: Date.now(),
   };
@@ -2410,28 +2350,18 @@ const COMPLETION_FIELD_META = {
   gender:{ label:'阴阳性', group:'分类', type:'enum' },
   etymologyTier:{ label:'词源层次', group:'分类', type:'enum' },
   // 语法特征（参考韩语 16 字段）
+  person:{ label:'人称', group:'分类', type:'enum' },
   verbClass:{ label:'动词变位类', group:'词法', type:'enum' },
   regularity:{ label:'规则性', group:'词法', type:'enum' },
   register:{ label:'语域', group:'词法', type:'enum' },
   region:{ label:'地区性', group:'词法', type:'enum' },
   frequency:{ label:'词频', group:'词法', type:'enum' },
-  // 语法属性（一期：PCIC 文档建议的词汇属性标签体系）
-  countability:{ label:'可数性', group:'语法', type:'enum', grammar:true },
-  transitivity:{ label:'及物性', group:'语法', type:'enum', grammar:true },
-  nounType:{ label:'名词子类', group:'语法', type:'enum', grammar:true },
-  concreteness:{ label:'具体性', group:'语法', type:'enum', grammar:true },
-  animacy:{ label:'有生性', group:'语法', type:'enum', grammar:true },
-  adjType:{ label:'形容词子类', group:'语法', type:'enum', grammar:true },
-  lexicalAspect:{ label:'词汇体', group:'语法', type:'enum', grammar:true },
-  cefr:{ label:'CEFR等级', group:'语法', type:'enum', grammar:true },
-  connotation:{ label:'感情色彩', group:'语法', type:'enum', grammar:true },
-  agreementNote:{ label:'一致说明', group:'语法', type:'string', grammar:true },
 };
 const COMPLETION_CONFIG_KEY = 'spanish_etymology_completion_v1';
-let completionConfig = { fields:['meaning','breakdown','analysis','etymology','englishCognate'], onlyIfEmpty:true, groupOnlyIfEmpty: { '内容':true, '分类':true, '词法':true, '语法':true } };
+let completionConfig = { fields:['meaning','breakdown','analysis','etymology','englishCognate'], onlyIfEmpty:true, groupOnlyIfEmpty: { '内容':true, '分类':true, '词法':true } };
 function loadCompletionConfig() { try { const r=localStorage.getItem(COMPLETION_CONFIG_KEY); if(r){const s=JSON.parse(r); if(Array.isArray(s.fields)) completionConfig.fields=s.fields.filter(f=>COMPLETION_FIELD_META[f]); if(typeof s.onlyIfEmpty==='boolean') completionConfig.onlyIfEmpty=s.onlyIfEmpty;}}catch{} }
 function saveCompletionConfig() { localStorage.setItem(COMPLETION_CONFIG_KEY, JSON.stringify(completionConfig)); }
-function isFieldEmpty(entry, field) { if(field==='emoji') return !_startsWithEmoji(entry.meaning||''); const meta=COMPLETION_FIELD_META[field]; const v=meta&&meta.grammar ? (entry.grammar||{})[field] : entry[field]; if(v==null)return true; if(Array.isArray(v))return v.length===0; if(typeof v==='boolean')return v===false; return String(v).trim()===''; }
+function isFieldEmpty(entry, field) { if(field==='emoji') return !_startsWithEmoji(entry.meaning||''); const v=entry[field]; if(v==null)return true; if(Array.isArray(v))return v.length===0; if(typeof v==='boolean')return v===false; return String(v).trim()===''; }
 function _isCompletionNeeded(entry, field) {
   const group = COMPLETION_FIELD_META[field]?.group || '';
   if (!(completionConfig.groupOnlyIfEmpty[group] ?? true)) return true;  // this group = overwrite → always needs
@@ -2446,7 +2376,7 @@ function findIncompleteEntries() {
 }
 function renderCompletionFieldPicker() {
   const grid=document.getElementById('comp-field-grid'); if(!grid)return;
-  const groups=['内容','分类','词法','语法']; let html='';
+  const groups=['内容','分类','词法']; let html='';
   for (const g of groups) {
     const fieldsInGroup = Object.entries(COMPLETION_FIELD_META).filter(([_,m])=>m.group===g);
     const groupKeys = fieldsInGroup.map(([k])=>k);
@@ -2476,7 +2406,7 @@ function toggleCompletionField(f, on) { if(on&&!completionConfig.fields.includes
 function toggleCompletionOnlyIfEmpty(on) { completionConfig.onlyIfEmpty=on; saveCompletionConfig(); }
 function toggleAllGroupOnlyIfEmpty(on) {
   // 全局「仅填空」→ 全部组同步 + 全局开关
-  ['内容','分类','词法','语法'].forEach(g => completionConfig.groupOnlyIfEmpty[g] = on);
+  ['内容','分类','词法'].forEach(g => completionConfig.groupOnlyIfEmpty[g] = on);
   completionConfig.onlyIfEmpty = on;
   saveCompletionConfig(); renderCompletionFieldPicker(); refreshAIScanResult();
 }
@@ -2526,6 +2456,7 @@ function buildAIEntryPrompt(input, existingTags) {
 - ipa: 国际音标 IPA，斜杠包围（如 /eˈla.ðo/）
 - pronNote: 发音要点中文说明（重音位置 + 特殊字母读音 + 西/美差异），如「重音在 la；h 不发音；ð 是舌尖软 d；拉美 s 不吐气」
 - gender: 阴阳性（m/f，名词/形容词填）
+- person: 人称（第一人称/第二人称/第三人称/无人称，**仅动词填**，其余词类留空）
 - root: 单一核心词根（如 hel-）；sufijo/prefijo 类填自身（如 -ado）。**禁止组合写法**：不要写 "luc-/luz" 或 "bien-ven" 这种拼接词根
 - roots: 该词还归属的额外词根/词缀数组（如 reconstrucción 的 ["re-","con-","-ción"]；luz 的 ["luz"]）。一个词若含多个词根/词缀，就分别列出，绝不合并成一个组合词根
 - rootMeaning: 词根核心含义，开头带 1-2 个 emoji 呼应词根义（如 ❄️寒冷、凝固 / ❤️爱 / 💡光）
@@ -2539,13 +2470,12 @@ function buildAIEntryPrompt(input, existingTags) {
 - etymologyTier: 词源层次（通俗拉丁语继承词/古典拉丁语借词/希腊语来源/阿拉伯语来源/日耳曼语来源/法语借词/英语借词/美洲原住民语言/内部新造词）
 - examples: 数组，每条 "西语 — 中文"
 - related: 同根词数组
-- grammar: 语法属性子对象（可选，按词性填适用字段）。countability:可数/不可数/视语境(仅名词)。transitivity:及物/不及物/双及物/系动词/代词式(仅动词)。nounType:普通/专有/集合(仅名词)。concreteness:具体/抽象(仅名词)。animacy:有生-人类/有生-动物/无生(仅名词)。adjType:性质/关系/国籍(仅形容词)。lexicalAspect:状态/活动/完成过程/瞬间达成(仅动词)。cefr:A1/A2/B1/B2/C1/C2(全词类)。connotation:褒义/贬义/中性(全词类)。
 ${tagConstraint}
 【参考：常见拉丁词根】${COMMON_LATIN_ROOTS.join('；')}
 【参考：核心音变规则】${SOUND_CHANGES.map(s=>s.rule+'（'+s.ex+'）').join('；')}
 
 【输出】仅输出严格 JSON，无 markdown 代码块：
-{"word":"","pos":"","ipa":"","pronNote":"","gender":"","root":"","roots":[],"rootMeaning":"","latinOrigin":"","meaning":"","breakdown":"","analysis":"","etymology":"","englishCognate":"","cognates":[],"etymologyTier":"","examples":[],"related":"","tags":[],"grammar":{"countability":"","transitivity":"","nounType":"","concreteness":"","animacy":"","adjType":"","lexicalAspect":"","cefr":"","connotation":""}}`;
+{"word":"","pos":"","ipa":"","pronNote":"","gender":"","person":"","root":"","roots":[],"rootMeaning":"","latinOrigin":"","meaning":"","breakdown":"","analysis":"","etymology":"","englishCognate":"","cognates":[],"etymologyTier":"","examples":[],"related":"","tags":[]}`;
 }
 function buildCompletionPrompt(batch) {
   const fields = completionConfig.fields.filter(f => f !== 'emoji');
@@ -2571,19 +2501,16 @@ function buildCompletionPrompt(batch) {
     tags:'语义标签数组，必须「一级>二级」，二级从官方子类选（禁止自拟）。20 一级：'+TAG_TAXONOMY_ROOTS.join(' / ')+'。每类官方二级示例：'+(Object.entries(_TAG_SUB_EXAMPLES).map(([r,s])=>r+'>'+s.slice(0,3).join('/')).join('；')),
     pos:'词性（名词/动词/形容词/副词/代词/介词/连词/冠词/数词/感叹词/后缀/前缀/词根，用中文）',
     gender:'阴阳性（m/f，名词/形容词填）',
+    person:'人称（第一/第二/第三人称，仅动词填）',
     etymologyTier:'词源层次',
     verbClass:'动词变位类（-ar/-er/-ir，仅动词）',
     regularity:'规则性（规则/不规则/词干元音变化，仅动词）',
     register:'语域（中性/口语/书面/正式）',
     region:'地区性（通用/地区性）',
     frequency:'词频（高频/中频/低频）',
-    countability:'可数性（可数/不可数/视语境，仅名词）', transitivity:'及物性（及物/不及物/双及物/系动词/代词式，仅动词）',
-    nounType:'名词子类（普通/专有/集合，仅名词）', concreteness:'具体性（具体/抽象，仅名词）', animacy:'有生性（有生-人类/有生-动物/无生，仅名词）',
-    adjType:'形容词子类（性质/关系/国籍，仅形容词）', lexicalAspect:'词汇体（状态/活动/完成过程/瞬间达成，仅动词）',
-    cefr:'CEFR等级（A1/A2/B1/B2/C1/C2）', connotation:'感情色彩（褒义/贬义/中性）',
   };
   const fieldList = fields.map(f=>`- ${f}: ${fieldDesc[f]||''}`).join('\n');
-  const sampleObj = { word: batch[0]?.word||'' }; fields.forEach(f => { if (f==='examples'||f==='related'||f==='tags'||f==='cognates'||f==='roots') sampleObj[f]=[]; else if (COMPLETION_FIELD_META[f]?.grammar) sampleObj[f]=''; else sampleObj[f]=''; });
+  const sampleObj = { word: batch[0]?.word||'' }; fields.forEach(f => { if (f==='examples'||f==='related'||f==='tags'||f==='cognates'||f==='roots') sampleObj[f]=[]; else sampleObj[f]=''; });
   let fieldListFull = fieldList;
   if (hasEmoji) { sampleObj.emoji = ''; fieldListFull += `\n- emoji: 1-3 个 emoji（呼应词根义），仅输出 emoji 本身`; }
   const rootRule = hasRootEntry ? `\n【⚠ 词根/词缀条目特别规则】标【条目·独立词素】的是词根或词缀本身（如 bien-、ven-、-ción）。
@@ -2688,6 +2615,7 @@ function normalizeAIEntry(p) {
     pos: String(p.pos||'').trim(),
     ipa: String(p.ipa||'').trim(),
     gender: String(p.gender||'').trim(),
+    person: String(p.person||'').trim(),
     pronNote: String(p.pronNote||'').trim(),
     root: String(p.root||'').trim() || (w?w.slice(0,3):''),
     roots: Array.isArray(p.roots)?p.roots.map(s=>String(s).trim()).filter(Boolean):[],
@@ -2818,18 +2746,14 @@ async function runAICompletion() {
 // value: POS 集合；空数组=全适用
 const FIELD_APPLICABILITY = {
   gender: ['名词','代词','数词','形容词'],
-  verbClass: ['动词'], regularity: ['动词'],
-  countability: ['名词'], nounType: ['名词'], concreteness: ['名词'], animacy: ['名词'],
-  transitivity: ['动词'], lexicalAspect: ['动词'],
-  adjType: ['形容词'],
+  person: ['动词'],                         // 人称仅动词
+  verbClass: ['动词'],
+  regularity: ['动词'],
 };
-// grammar 字段读写在 entry.grammar 子对象上
-function _grammarGet(entry, field) { return (entry.grammar||{})[field]; }
-function _grammarSet(entry, field, val) { if (!entry.grammar) entry.grammar = {}; entry.grammar[field] = val; }
 function _isFieldApplicable(field, entry) {
   const allowed = FIELD_APPLICABILITY[field];
-  if (!allowed) return true;
-  if (entry.pos == null || entry.pos === '') return true;
+  if (!allowed) return true;       // 不在表里 = 全适用
+  if (entry.pos == null || entry.pos === '') return true;  // 词性未知 = 不阻挡
   return allowed.includes(entry.pos);
 }
 function applyCompletions(batch, results) {
@@ -2848,9 +2772,7 @@ function applyCompletions(batch, results) {
         // POS 适用性：不适用就静默跳过（不阻塞，不报错）
         if (!_isFieldApplicable(field, target)) continue;
         const fv = (field==='tags') ? (Array.isArray(newVal)?newVal.map(_ingestTag):[]).filter(Boolean) : newVal;
-        const meta = COMPLETION_FIELD_META[field];
-        if (meta && meta.grammar) { _grammarSet(target, field, Array.isArray(fv) ? fv.slice(0,12) : String(fv).trim()); }
-        else if (Array.isArray(fv)) target[field] = fv.slice(0,12);
+        if (Array.isArray(fv)) target[field] = fv.slice(0,12);
         else target[field] = String(fv).trim();
         changed=true;
       } catch(e) { console.warn(`[Completion] 跳过 ${target.word}.${field}: ${e.message}`); /* 单字段失败不阻塞 */ }
