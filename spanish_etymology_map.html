@@ -226,10 +226,16 @@
 <div class="recent-drawer" id="recent-drawer">
   <button class="recent-drawer-close" onclick="toggleRecentDrawer()" title="关闭">✕</button>
   <h3 style="margin:0 0 14px;font-size:15px;" title="按 createdAt 倒序排列，存于 localStorage，刷新/重启不丢，除非清缓存或删词条">🕘 最近添加</h3>
-  <div style="margin:8px 0;display:flex;gap:6px;">
+  <div style="margin:8px 0;display:flex;gap:6px;flex-wrap:wrap;">
     <button class="recent-n-btn px-3 py-1 text-xs rounded-lg border border-white/10 bg-[#38bdf8]/20 text-[#7dd3fc]" onclick="setRecentN(10,event)">10</button>
     <button class="recent-n-btn px-3 py-1 text-xs rounded-lg border border-white/10 text-slate-400" onclick="setRecentN(20,event)">20</button>
     <button class="recent-n-btn px-3 py-1 text-xs rounded-lg border border-white/10 text-slate-400" onclick="setRecentN(50,event)">50</button>
+  </div>
+  <div style="margin:4px 0 12px;display:flex;gap:4px;flex-wrap:wrap;">
+    <button class="recent-filter-btn px-2 py-0.5 text-[10px] rounded border" data-rf="words" onclick="setRecentFilter('words',event)">仅单词</button>
+    <button class="recent-filter-btn px-2 py-0.5 text-[10px] rounded border" data-rf="roots" onclick="setRecentFilter('roots',event)">仅词根</button>
+    <button class="recent-filter-btn px-2 py-0.5 text-[10px] rounded border" data-rf="affixes" onclick="setRecentFilter('affixes',event)">仅词缀</button>
+    <button class="recent-filter-btn px-2 py-0.5 text-[10px] rounded border" data-rf="all" onclick="setRecentFilter('all',event)">全部</button>
   </div>
   <div id="recent-list"></div>
 </div>
@@ -2289,9 +2295,27 @@ function confirmReset() { if (!confirm('确定清空所有词条恢复示例数�
 // 最近添加（抽屉）
 // =========================================================================
 let _recentN = parseInt(localStorage.getItem('spanish_recent_n') || '10', 10) || 10;
+let _recentFilter = 'words';  // words | roots | affixes | all
+function setRecentFilter(f, ev) {
+  _recentFilter = f;
+  document.querySelectorAll('.recent-filter-btn').forEach(b => {
+    const on = b.dataset.rf === f;
+    b.className = `recent-filter-btn px-2 py-0.5 text-[10px] rounded border ${on?'text-[#7dd3fc] bg-[#38bdf8]/15 border-[#38bdf8]/30':'border-white/10 text-slate-400'}`;
+  });
+  if (ev) renderRecent();
+}
 function toggleRecentDrawer() { const d=document.getElementById('recent-drawer'), b=document.getElementById('recent-drawer-backdrop'); const open = d.classList.contains('open'); if(open){d.classList.remove('open');b.classList.remove('open');}else{d.classList.add('open');b.classList.add('open');renderRecent();} }
 function setRecentN(n, ev) { _recentN=n; localStorage.setItem('spanish_recent_n', n); document.querySelectorAll('.recent-n-btn').forEach(b=>{b.style.background='';b.style.color='';}); if(ev&&ev.target){ev.target.style.background='rgba(56,189,248,0.2)';ev.target.style.color='#7dd3fc';} renderRecent(); }
-function renderRecent() { const list=document.getElementById('recent-list'); if(!list)return; const items=state.entries.filter(e=>e.createdAt).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0)).slice(0,_recentN); list.innerHTML = items.length?items.map(e=>`<div class="word-item px-3 py-2 rounded-lg border border-white/5 cursor-pointer" onclick="selectRecentEntry('${e.id}')"><span class="text-[#7dd3fc] font-bold text-base">${escapeHtml(e.word)}</span> <span class="text-slate-300 text-sm">${escapeHtml((e.meaning||'').split(/[;；]/)[0])}</span></div>`).join(''):'<div class="text-slate-500 text-sm p-2">还没有用户添加的词条</div>'; }
+function renderRecent() {
+  const list=document.getElementById('recent-list'); if(!list)return;
+  let items=state.entries.filter(e=>e.createdAt).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  // 应用筛选
+  if (_recentFilter==='words') items=items.filter(e=>!isRootEntry(e));
+  else if (_recentFilter==='roots') items=items.filter(e=>isRootEntry(e)&&e.pos==='词根');
+  else if (_recentFilter==='affixes') items=items.filter(e=>isRootEntry(e)&&(e.pos==='前缀'||e.pos==='后缀'));
+  items=items.slice(0,_recentN);
+  list.innerHTML = items.length?items.map(e=>`<div class="word-item px-3 py-2 rounded-lg border border-white/5 cursor-pointer" onclick="selectRecentEntry('${e.id}')"><span class="text-[#7dd3fc] font-bold text-base">${escapeHtml(e.word)}</span> <span class="text-slate-300 text-sm">${escapeHtml((e.meaning||'').split(/[;；]/)[0])}</span></div>`).join(''):'<div class="text-slate-500 text-sm p-2">还没有用户添加的词条</div>';
+}
 function selectRecentEntry(id) { const e=state.entries.find(x=>x.id===id); if(!e)return; pushNav(); state.selectedEntryId=id; state.highlightRoot=null; document.getElementById('recent-drawer').classList.remove('open'); document.getElementById('recent-drawer-backdrop').classList.remove('open'); renderRootsList(); renderWordsList(); renderDetail(); scrollToActiveItems(); }
 
 // =========================================================================
