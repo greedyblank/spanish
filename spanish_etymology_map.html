@@ -722,7 +722,7 @@ function repairDataNow() {
 // =========================================================================
 const SETTINGS2 = {};
 let syncConfig = { token:'', gistId:'', autoSync:true };
-let syncStatus = { busy:false, lastPushAt:0, lastPullAt:0, lastError:'' };
+let syncStatus = { busy:false, lastPushAt:0, lastPullAt:0, lastError:'', remoteCount:0, remoteUpdatedAt:'' };
 let _lastPushedSig = '', _rateLimitedUntil = 0, _pushTimer = null, _visibilityBound = false;
 
 function loadSyncConfig() {
@@ -773,8 +773,11 @@ async function pushToGist(verbose) {
     if (!fullRes.ok) throw new Error(`HTTP ${fullRes.status}`);
     _lastPushedSig = payloadSig(buildPayload());
     syncStatus.lastPushAt = Date.now();
+    syncStatus.remoteCount = state.entries.length;
+    syncStatus.remoteUpdatedAt = new Date().toISOString();
     syncStatus.lastError = '';
-    toast('☁️ 已上传到云端','success');
+    updateSyncStatusUI();
+    toast(`☁️ 已上传 ${state.entries.length} 条到云端`,'success');
   } catch(e) {
     syncStatus.lastError = '上传失败：'+e.message;
     if (/403|rate limit/i.test(e.message)) { _rateLimitedUntil = Date.now()+5*60*1000; syncStatus.lastError='GitHub 限流，5 分钟后重试'; }
@@ -792,13 +795,15 @@ async function pullFromGist(verbose) {
     const data = await res.json();
     const raw = data.files?.[GIST_FILE]?.content;
     syncStatus.lastPullAt = Date.now();
-    if (!raw) { syncStatus.lastError=''; updateSyncStatusUI(); toast('☁️ 云端为空','info'); return; }
+    syncStatus.remoteUpdatedAt = data.updated_at || '';
+    if (!raw) { syncStatus.remoteCount = 0; syncStatus.lastError=''; updateSyncStatusUI(); toast('☁️ 云端为空','info'); return; }
     const remote = JSON.parse(raw);
-    if (!remote.entries) { syncStatus.lastError=''; updateSyncStatusUI(); return; }
+    if (!remote.entries) { syncStatus.remoteCount = 0; syncStatus.lastError=''; updateSyncStatusUI(); return; }
+    syncStatus.remoteCount = remote.entries.length;
     const before = payloadSig(buildPayload());
     const merged = mergeState(buildPayload(), remote);
     const after = payloadSig(merged);
-    if (after === before) { syncStatus.lastError=''; updateSyncStatusUI(); toast('☁️ 云端数据已是最新','info'); return; }
+    if (after === before) { syncStatus.lastError=''; updateSyncStatusUI(); toast(`☁️ 云端 ${remote.entries.length} 条 · 已是最新`,'info'); return; }
     state.entries = merged.entries;
     state.tombstones = merged.tombstones;
     state.tagGraph = merged.tagGraph;
@@ -806,7 +811,7 @@ async function pullFromGist(verbose) {
     _lastPushedSig = after;
     save(); render(); updateStats();
     syncStatus.lastError=''; updateSyncStatusUI();
-    toast('☁️ 已同步云端数据（合并 '+remote.entries.length+' 条）','success');
+    toast(`☁️ 已同步云端 ${remote.entries.length} 条（本地 ${state.entries.length} 条）`,'success');
   } catch(e) {
     syncStatus.lastError='拉取失败：'+e.message;
     updateSyncStatusUI();
@@ -857,6 +862,7 @@ function updateSyncStatusUI() {
   const parts = [];
   if (syncStatus.busy) parts.push('同步中…');
   if (syncStatus.lastError) parts.push('⚠ '+syncStatus.lastError);
+  if (syncStatus.remoteCount) parts.push(`☁️ ${syncStatus.remoteCount} 条${syncStatus.remoteUpdatedAt?' · '+fmtTime(syncStatus.remoteUpdatedAt):''}`);
   parts.push(`↑ ${fmtTime(syncStatus.lastPushAt)}`); parts.push(`↓ ${fmtTime(syncStatus.lastPullAt)}`);
   el.textContent = parts.join(' · ');
 }
@@ -1019,7 +1025,8 @@ function reportPersistenceStatus() {
   // Gist
   if (syncReady()) {
     const ts = syncStatus.lastPushAt || syncStatus.lastPullAt;
-    parts.push(ts ? '☁️ Gist 已连接 ✓' : '☁️ Gist 已配置（等待首次同步）');
+    const count = syncStatus.remoteCount ? `（云端 ${syncStatus.remoteCount} 条）` : '';
+    parts.push(ts ? `☁️ Gist 已连接 ✓ ${count}` : '☁️ Gist 已配置（等待首次同步）');
   } else {
     parts.push('☁️ Gist 未配置（点 ⚙→☁️多端同步 可跨设备同步）');
   }
