@@ -739,7 +739,13 @@ function loadSyncConfig() {
 }
 function saveSyncConfig() { localStorage.setItem(SYNC_KEY, JSON.stringify(syncConfig)); }
 function syncReady() { return !!(syncConfig.token && syncConfig.gistId); }
-function payloadSig(obj) { return btoa(unescape(encodeURIComponent(JSON.stringify(obj)))).slice(0,16); }
+function payloadSig(obj) {
+  // 简单 hash（不用 btoa/unescape，兼容所有浏览器含 iOS）
+  const s = JSON.stringify(obj);
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
 function buildPayload() {
   return {
     entries: state.entries,
@@ -801,41 +807,69 @@ async function pushToGist(verbose) {
     toast('☁️ '+syncStatus.lastError,'error');
   } finally { syncStatus.busy=false; updateSyncStatusUI(); }
 }
+// 返回 true=拉取并合并成功, false=失败/无变化。syncCycle 据此决定是否推送。
 async function pullFromGist(verbose, silentMerge) {
-  if (!syncReady()) return;
-  if (syncStatus.busy && !silentMerge) return;   // syncCycle 里允许并发调用（已锁 _syncCycleRunning）
-  if (Date.now() < _rateLimitedUntil) { if (verbose) toast('GitHub 限流冷却中','info'); return; }
-  syncStatus.busy = true;
+  if (!syncReady()) return false;
+  if (syncStatus.busy && !silentMerge) return false;
+  if (Date.now() < _rateLimitedUntil) { if (verbose) toast('GitHub 限流冷却中','info'); return false; }
   if (!silentMerge) toast('☁️ 正在从云端拉取…','info');
-  syncStatus.busy = true;
+  let res;
   try {
-    const res = await fetch(`https://api.github.com/gists/${syncConfig.gistId}`, { headers:{'Authorization':`Bearer ${syncConfig.token}`,'Accept':'application/vnd.github+json'} });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data = await res.json();
-    const raw = data.files?.[GIST_FILE]?.content;
-    syncStatus.lastPullAt = Date.now();
-    syncStatus.remoteUpdatedAt = data.updated_at || '';
-    if (!raw) { syncStatus.remoteCount = 0; syncStatus.lastError=''; updateSyncStatusUI(); if (!silentMerge) toast('☁️ 云端为空','info'); return; }
-    const remote = JSON.parse(raw);
-    if (!remote.entries) { syncStatus.remoteCount = 0; syncStatus.lastError=''; updateSyncStatusUI(); return; }
-    syncStatus.remoteCount = remote.entries.length;
-    const before = payloadSig(buildPayload());
-    const merged = mergeState(buildPayload(), remote);
-    const after = payloadSig(merged);
-    if (after === before) { syncStatus.lastError=''; updateSyncStatusUI(); if (!silentMerge) toast(`☁️ 云端 ${remote.entries.length} 条 · 已是最新`,'info'); return; }
-    state.entries = merged.entries;
-    state.tombstones = merged.tombstones;
-    state.tagGraph = merged.tagGraph;
-    state.tagGraphUpdatedAt = merged.tagGraphUpdatedAt;
-    _lastPushedSig = after;
-    _saveReason = 'merge'; save(); render(); updateStats(); _saveReason = 'edit';
-    syncStatus.lastError=''; updateSyncStatusUI();
-    if (!silentMerge) toast(`☁️ 已合并云端 ${remote.entries.length} 条 → 本地 ${state.entries.length} 条`,'success');
-  } catch(e) {
-    syncStatus.lastError='拉取失败：'+e.message;
+    res = await fetch(`https://api.github.com/gists/${syncConfig.gistId}`, { headers:{'Authorization':`Bearer ${syncConfig.token}`,'Accept':'application/vnd.github+json'} });
+  } catch(netErr) {
+    // 网络层失败（CORS/DNS/超时）— 这是最可能在 iOS 上发生的
+    syncStatus.lastError = '网络失败：'+netErr.message;
     updateSyncStatusUI();
-    toast('☁️ 拉取失败：'+e.message,'error');
-  } finally { syncStatus.busy=false; }
+    if (!silentMerge) toast('☁️ 网络失败：'+netErr.message+'（检查网络/CORS）','error');
+    return false;
+  }
+  if (!res.ok) {
+    syncStatus.lastError = `HTTP ${res.status}`;
+    updateSyncStatusUI();
+    if (!silentMerge) toast('☁️ 拉取失败：HTTP '+res.status,'error');
+    return false;
+  }
+  let data;
+  try {
+    data = await res.json();
+  } catch(parseErr) {
+    syncStatus.lastError = '响应解析失败：'+parseErr.message;
+    updateSyncStatusUI();
+    return false;
+  }
+  const raw = data.files?.[GIST_FILE]?.content;
+  syncStatus.lastPullAt = Date.now();
+  syncStatus.remoteUpdatedAt = data.updated_at || '';
+  if (!raw) { syncStatus.remoteCount = 0; syncStatus.lastError=''; updateSyncStatusUI(); if (!silentMerge) toast('☁️ 云端为空','info'); return false; }
+  let remote;
+  try {
+    remote = JSON.parse(raw);
+  } catch(jsonErr) {
+    syncStatus.lastError = '云端数据JSON解析失败：'+jsonErr.message;
+    updateSyncStatusUI();
+    return false;
+  }
+  if (!remote.entries) { syncStatus.remoteCount = 0; syncStatus.lastError=''; updateSyncStatusUI(); return false; }
+  syncStatus.remoteCount = remote.entries.length;
+  // 合并
+  const before = payloadSig(buildPayload());
+  const merged = mergeState(buildPayload(), remote);
+  const after = payloadSig(merged);
+  if (after === before) {
+    syncStatus.lastError=''; updateSyncStatusUI();
+    if (!silentMerge) toast(`☁️ 云端 ${remote.entries.length} 条 · 已是最新`,'info');
+    return true;   // 拉取成功，只是没变化
+  }
+  // 合并成功 → 写入本地
+  state.entries = merged.entries;
+  state.tombstones = merged.tombstones;
+  state.tagGraph = merged.tagGraph;
+  state.tagGraphUpdatedAt = merged.tagGraphUpdatedAt;
+  _lastPushedSig = after;
+  _saveReason = 'merge'; save(); render(); updateStats(); _saveReason = 'edit';
+  syncStatus.lastError=''; updateSyncStatusUI();
+  if (!silentMerge) toast(`☁️ 已合并云端 ${remote.entries.length} 条 → 本地 ${state.entries.length} 条`,'success');
+  return true;
 }
 // ⚠ 核心同步规则：push 前必须先 pull+merge，否则会用本地旧数据覆盖云端。
 //   因此 save() 触发的 scheduleCloudSync 走「拉→合并→推」原子循环，绝不再裸 push。
@@ -844,13 +878,16 @@ async function syncCycle(verbose) {
   if (!syncReady() || _syncCycleRunning) { if (_syncCycleRunning && verbose) toast('☁️ 上一次同步还在进行，已排队','info'); return; }
   _syncCycleRunning = true;
   syncStatus.busy = true; updateSyncStatusUI();
-  let pullOK = false;
   try {
-    // 1) 拉取云端（内部已 mergeState 合并，save() 写回本地）
-    await pullFromGist(verbose, true);   // silentMerge=true：内部不再单独 toast，由本循环统一提示
-    pullOK = true;
-    // 2) 推送合并后的本地数据到云端（仅当拉取成功才推，防止旧数据覆盖云端）
-    if (pullOK) await pushToGist(verbose);
+    // 1) 拉取+合并。返回 true=成功（含无变化），false=失败
+    const pullOK = await pullFromGist(verbose, true);
+    if (!pullOK) {
+      // 拉取失败 → 绝不推送，避免旧数据覆盖云端
+      if (verbose) toast('☁️ 拉取失败，已跳过推送（保护云端数据）','error');
+      return;
+    }
+    // 2) 推送合并后的本地数据到云端
+    await pushToGist(verbose);
   } catch(e) { if (verbose) toast('☁️ 同步失败：'+e.message,'error'); }
   finally { _syncCycleRunning = false; syncStatus.busy = false; updateSyncStatusUI(); }
 }
