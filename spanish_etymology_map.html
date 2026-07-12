@@ -767,11 +767,19 @@ function mergeState(local, remote) {
   };
 }
 async function pushToGist(verbose) {
-  if (!syncReady() || syncStatus.busy) return;
-  if (Date.now() < _rateLimitedUntil) { toast('☁️ GitHub 限流冷却中…','info'); return; }
+  if (!syncReady()) return;
+  if (Date.now() < _rateLimitedUntil) { if (verbose) toast('☁️ GitHub 限流冷却中…','info'); return; }
   const sig = payloadSig(buildPayload());
   if (sig === _lastPushedSig) return;   // 内容未变化，静默跳过
-  syncStatus.busy = true;
+  // ⚠ 数据丢失防护：如果本地明显少于云端（拉取失败/未完成），拒绝推送
+  if (syncStatus.remoteCount && state.entries.length < syncStatus.remoteCount * 0.5) {
+    syncStatus.lastError = `推送已拦截：本地 ${state.entries.length} 条 远少于云端 ${syncStatus.remoteCount} 条，疑似拉取失败`;
+    updateSyncStatusUI();
+    if (verbose) toast('⚠ ' + syncStatus.lastError, 'error');
+    console.warn('[SyncGuard]', syncStatus.lastError);
+    return;
+  }
+  if (verbose) toast('☁️ 正在上传到云端…','info');
   toast('☁️ 正在上传到云端…','info');
   try {
     const fullRes = await fetch(`https://api.github.com/gists/${syncConfig.gistId}`, {
@@ -836,11 +844,13 @@ async function syncCycle(verbose) {
   if (!syncReady() || _syncCycleRunning) { if (_syncCycleRunning && verbose) toast('☁️ 上一次同步还在进行，已排队','info'); return; }
   _syncCycleRunning = true;
   syncStatus.busy = true; updateSyncStatusUI();
+  let pullOK = false;
   try {
     // 1) 拉取云端（内部已 mergeState 合并，save() 写回本地）
     await pullFromGist(verbose, true);   // silentMerge=true：内部不再单独 toast，由本循环统一提示
-    // 2) 推送合并后的本地数据到云端
-    await pushToGist(verbose);
+    pullOK = true;
+    // 2) 推送合并后的本地数据到云端（仅当拉取成功才推，防止旧数据覆盖云端）
+    if (pullOK) await pushToGist(verbose);
   } catch(e) { if (verbose) toast('☁️ 同步失败：'+e.message,'error'); }
   finally { _syncCycleRunning = false; syncStatus.busy = false; updateSyncStatusUI(); }
 }
