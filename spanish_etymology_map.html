@@ -127,6 +127,7 @@
         <div class="flex items-center gap-1"><span class="text-[#38bdf8] font-bold text-sm" id="stat-words">0</span><span>词条</span></div>
         <div class="flex items-center gap-1"><span class="text-[#f43f5e] font-bold text-sm" id="stat-roots">0</span><span>词根</span></div>
         <div class="flex items-center gap-1"><span class="text-[#34d399] font-bold text-sm" id="stat-letters">0</span><span>/27 字母</span></div>
+        <div id="sync-status-bar" class="hidden items-center gap-1.5 text-[10px] font-mono px-2 py-0.5 rounded border border-white/10 bg-white/[0.03]" title="持久化同步状态"></div>
       </div>
       <div class="flex flex-wrap items-center gap-1.5 justify-end">
         <button id="nav-back-btn" onclick="navBack()" class="px-2.5 py-1.5 text-xs rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 transition" title="返回上一视图（Alt+←）">←</button>
@@ -784,11 +785,13 @@ async function pushToGist(verbose) {
     toast('☁️ '+syncStatus.lastError,'error');
   } finally { syncStatus.busy=false; updateSyncStatusUI(); }
 }
-async function pullFromGist(verbose) {
-  if (!syncReady() || syncStatus.busy) return;
+async function pullFromGist(verbose, silentMerge) {
+  if (!syncReady()) return;
+  if (syncStatus.busy && !silentMerge) return;   // syncCycle 里允许并发调用（已锁 _syncCycleRunning）
   if (Date.now() < _rateLimitedUntil) { if (verbose) toast('GitHub 限流冷却中','info'); return; }
   syncStatus.busy = true;
-  toast('☁️ 正在从云端拉取…','info');
+  if (!silentMerge) toast('☁️ 正在从云端拉取…','info');
+  syncStatus.busy = true;
   try {
     const res = await fetch(`https://api.github.com/gists/${syncConfig.gistId}`, { headers:{'Authorization':`Bearer ${syncConfig.token}`,'Accept':'application/vnd.github+json'} });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -796,14 +799,14 @@ async function pullFromGist(verbose) {
     const raw = data.files?.[GIST_FILE]?.content;
     syncStatus.lastPullAt = Date.now();
     syncStatus.remoteUpdatedAt = data.updated_at || '';
-    if (!raw) { syncStatus.remoteCount = 0; syncStatus.lastError=''; updateSyncStatusUI(); toast('☁️ 云端为空','info'); return; }
+    if (!raw) { syncStatus.remoteCount = 0; syncStatus.lastError=''; updateSyncStatusUI(); if (!silentMerge) toast('☁️ 云端为空','info'); return; }
     const remote = JSON.parse(raw);
     if (!remote.entries) { syncStatus.remoteCount = 0; syncStatus.lastError=''; updateSyncStatusUI(); return; }
     syncStatus.remoteCount = remote.entries.length;
     const before = payloadSig(buildPayload());
     const merged = mergeState(buildPayload(), remote);
     const after = payloadSig(merged);
-    if (after === before) { syncStatus.lastError=''; updateSyncStatusUI(); toast(`☁️ 云端 ${remote.entries.length} 条 · 已是最新`,'info'); return; }
+    if (after === before) { syncStatus.lastError=''; updateSyncStatusUI(); if (!silentMerge) toast(`☁️ 云端 ${remote.entries.length} 条 · 已是最新`,'info'); return; }
     state.entries = merged.entries;
     state.tombstones = merged.tombstones;
     state.tagGraph = merged.tagGraph;
@@ -811,18 +814,37 @@ async function pullFromGist(verbose) {
     _lastPushedSig = after;
     save(); render(); updateStats();
     syncStatus.lastError=''; updateSyncStatusUI();
-    toast(`☁️ 已同步云端 ${remote.entries.length} 条（本地 ${state.entries.length} 条）`,'success');
+    if (!silentMerge) toast(`☁️ 已合并云端 ${remote.entries.length} 条 → 本地 ${state.entries.length} 条`,'success');
   } catch(e) {
     syncStatus.lastError='拉取失败：'+e.message;
     updateSyncStatusUI();
     toast('☁️ 拉取失败：'+e.message,'error');
   } finally { syncStatus.busy=false; }
 }
-function scheduleCloudSync() { if (!syncConfig.autoSync || !syncReady()) return; clearTimeout(_pushTimer); _pushTimer = setTimeout(()=>pushToGist(true), 1500); }
+// ⚠ 核心同步规则：push 前必须先 pull+merge，否则会用本地旧数据覆盖云端。
+//   因此 save() 触发的 scheduleCloudSync 走「拉→合并→推」原子循环，绝不再裸 push。
+let _syncCycleRunning = false;
+async function syncCycle(verbose) {
+  if (!syncReady() || _syncCycleRunning) { if (_syncCycleRunning && verbose) toast('☁️ 上一次同步还在进行，已排队','info'); return; }
+  _syncCycleRunning = true;
+  syncStatus.busy = true; updateSyncStatusUI();
+  try {
+    // 1) 拉取云端（内部已 mergeState 合并，save() 写回本地）
+    await pullFromGist(verbose, true);   // silentMerge=true：内部不再单独 toast，由本循环统一提示
+    // 2) 推送合并后的本地数据到云端
+    await pushToGist(verbose);
+  } catch(e) { if (verbose) toast('☁️ 同步失败：'+e.message,'error'); }
+  finally { _syncCycleRunning = false; syncStatus.busy = false; updateSyncStatusUI(); }
+}
+function scheduleCloudSync() {
+  if (!syncConfig.autoSync || !syncReady()) return;
+  clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(()=>syncCycle(false), 2000);   // 防抖 2s，走完整拉-合并-推循环
+}
 function startCloudSync() {
   loadSyncConfig();
   if (!syncReady()) return;
-  pullFromGist(true);
+  syncCycle(true);   // 首次加载：拉-合并-推
   if (!_visibilityBound) {
     document.addEventListener('visibilitychange', () => { if (!document.hidden && syncReady()) pullFromGist(false); });
     _visibilityBound = true;
@@ -850,21 +872,44 @@ async function createGist() {
 }
 async function syncNow() {
   if (!syncReady()) { toast('请先填写 Token 和 Gist ID','error'); return; }
-  toast('同步中…');
-  await pullFromGist(true);
-  await pushToGist(true);
+  await syncCycle(true);
 }
 function fmtTime(ts) { if (!ts) return '—'; const d=new Date(ts); return d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0'); }
 function updateSyncStatusUI() {
   const el = document.getElementById('sync-status-row');
-  if (!el) return;
-  if (!syncReady()) { el.textContent = '未配置'; return; }
-  const parts = [];
-  if (syncStatus.busy) parts.push('同步中…');
-  if (syncStatus.lastError) parts.push('⚠ '+syncStatus.lastError);
-  if (syncStatus.remoteCount) parts.push(`☁️ ${syncStatus.remoteCount} 条${syncStatus.remoteUpdatedAt?' · '+fmtTime(syncStatus.remoteUpdatedAt):''}`);
-  parts.push(`↑ ${fmtTime(syncStatus.lastPushAt)}`); parts.push(`↓ ${fmtTime(syncStatus.lastPullAt)}`);
-  el.textContent = parts.join(' · ');
+  const bar = document.getElementById('sync-status-bar');
+  // 弹窗内的状态行
+  if (el) {
+    if (!syncReady()) { el.textContent = '未配置'; }
+    else {
+      const parts = [];
+      if (syncStatus.busy) parts.push('同步中…');
+      if (syncStatus.lastError) parts.push('⚠ '+syncStatus.lastError);
+      if (syncStatus.remoteCount) parts.push(`☁️ ${syncStatus.remoteCount} 条${syncStatus.remoteUpdatedAt?' · '+fmtTime(syncStatus.remoteUpdatedAt):''}`);
+      parts.push(`↑ ${fmtTime(syncStatus.lastPushAt)}`); parts.push(`↓ ${fmtTime(syncStatus.lastPullAt)}`);
+      el.textContent = parts.join(' · ');
+    }
+  }
+  // 首页顶部常驻状态栏：💾本地 · ☁️云端·↑·↓
+  if (bar) {
+    if (!syncReady() && !fileSyncState.handle) { bar.classList.add('hidden'); bar.classList.remove('flex'); return; }
+    bar.classList.remove('hidden'); bar.classList.add('flex');
+    const segs = [];
+    segs.push(`<span class="text-[#38bdf8]">💾${state.entries.length}</span>`);
+    if (syncReady()) {
+      const rc = syncStatus.remoteCount ? syncStatus.remoteCount : '?';
+      segs.push(`<span class="text-[#a855f7]">☁️${rc}</span>`);
+      segs.push(`<span class="text-slate-500">↑${fmtTime(syncStatus.lastPushAt)}</span>`);
+      segs.push(`<span class="text-slate-500">↓${fmtTime(syncStatus.lastPullAt)}</span>`);
+      if (syncStatus.busy) segs.push(`<span class="text-[#fbbf24] animate-pulse">⟳</span>`);
+      if (syncStatus.lastError) segs.push(`<span class="text-[#fda4af]" title="${escapeHtml(syncStatus.lastError)}">⚠</span>`);
+    }
+    if (fileSyncState.handle) {
+      const ft = syncStatus.lastSync ? fmtTime(syncStatus.lastSync) : '—';   // fileSyncState.lastSync
+      segs.push(`<span class="text-[#34d399]">📁✓</span>`);
+    }
+    bar.innerHTML = segs.join('<span class="text-slate-700">·</span>');
+  }
 }
 function openSyncModal() {
   document.getElementById('sync-token').value = syncConfig.token || '';
@@ -999,6 +1044,7 @@ function updateFileSyncStatus() {
   } else {
     el.classList.add('hidden');
   }
+  updateSyncStatusUI();   // 同步刷新顶部常驻状态栏
 }
 let _persistenceReported = false;
 async function restoreFileSync() {
@@ -1970,7 +2016,7 @@ function renderReference() {}  // 预留
 // =========================================================================
 // RENDER 主入口
 // =========================================================================
-function render() { updateStats(); renderLetterGrid(); renderRootsList(); renderWordsList(); renderDetail(); renderTagCloud(); updateNavBackBtn(); }
+function render() { updateStats(); renderLetterGrid(); renderRootsList(); renderWordsList(); renderDetail(); renderTagCloud(); updateNavBackBtn(); updateSyncStatusUI(); }
 function updateNavBackBtn() {
   const b=document.getElementById('nav-back-btn'); const f=document.getElementById('nav-fwd-btn');
   if(b){ b.classList.toggle('opacity-30', _navHistory.length===0); b.classList.toggle('pointer-events-none', _navHistory.length===0); }
