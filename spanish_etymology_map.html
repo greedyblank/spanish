@@ -358,6 +358,7 @@
       <button onclick="exportJSON()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300">↓ 导出</button>
       <label class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300 cursor-pointer">↑ 导入<input type="file" accept=".json" onchange="importJSON(event)" class="hidden"></label>
       <button onclick="closeSettingsModal(); confirmReset()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 hover:bg-[#f43f5e]/20 border border-white/10 text-slate-400 hover:text-[#fda4af]">↺ 重置</button>
+      <button onclick="closeSettingsModal(); openTrash()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300">🗑 回收站</button>
     </div>
     <div class="flex gap-1 mb-4 bg-white/5 rounded-lg p-1">
       <button id="tab-btn-primary" onclick="switchLLMTab('primary')" class="flex-1 px-3 py-1.5 text-xs rounded-md font-semibold transition">🧠 主 LLM <span class="text-[10px] opacity-70">(新词条)</span></button>
@@ -546,6 +547,7 @@ let state = {
   entries: [],
   tagGraph: {},
   tombstones: [],
+  trash: [],
   tagGraphUpdatedAt: 0,
   filter: { letter: null, root: null, search: '' },
   rootTypeFilter: 'all',   // #9: all | root | affix
@@ -590,11 +592,13 @@ function navForward() {
 
 function uid() { return 'e-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7); }
 
+const TRASH_KEY = 'spanish_etymology_trash_v1';
 function save() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries));
     localStorage.setItem(TAGGRAPH_KEY, JSON.stringify(state.tagGraph||{}));
     localStorage.setItem(TOMBSTONES_KEY, JSON.stringify(state.tombstones||[]));
+    localStorage.setItem(TRASH_KEY, JSON.stringify(state.trash||[]));
   } catch(e){ toast('保存失败：'+e.message,'error'); }
 }
 function load() {
@@ -605,6 +609,8 @@ function load() {
     state.tagGraph = tg ? JSON.parse(tg) : {};
     const tb = localStorage.getItem(TOMBSTONES_KEY);
     if (tb) state.tombstones = JSON.parse(tb);
+    const tr = localStorage.getItem(TRASH_KEY);
+    if (tr) state.trash = JSON.parse(tr);
   } catch(e){ console.error('Load failed:',e); state.entries=[]; state.tagGraph={}; }
 }
 // 一次性迁移：旧「复用韩语」通用分类 → PCIC 官方 20 类（#7）。幂等 + 版本守卫
@@ -755,18 +761,28 @@ function buildPayload() {
   };
 }
 function mergeState(local, remote) {
+  // ① 按 id 去重（同 id 取 updatedAt 新的）
   const byId = new Map();
   [...local.entries, ...(remote.entries||[])].forEach(e => {
     const ex = byId.get(e.id);
     if (!ex || (e.updatedAt||0) > (ex.updatedAt||0)) byId.set(e.id, e);
   });
+  // ② 按 (word, version) 去重（同词同版本=重复条目，取 updatedAt 新的；同词不同版本=多义项，都留）
+  const byWV = new Map();
+  for (const e of byId.values()) {
+    const key = (e.word||'').trim().toLowerCase() + '||' + (e.version||1);
+    const ex = byWV.get(key);
+    if (!ex || (e.updatedAt||0) > (ex.updatedAt||0)) byWV.set(key, e);
+  }
+  const mergedEntries = [...byWV.values()];
   const tomMap = new Map();
   [...(local.tombstones||[]), ...(remote.tombstones||[])].forEach(t => tomMap.set(t.id, t));
-  // 应用墓碑
-  tomMap.forEach(t => byId.delete(t.id));
+  // 应用墓碑（按 id 删除已删词条）
+  const tombIds = new Set([...tomMap.keys()]);
+  const finalEntries = mergedEntries.filter(e => !tombIds.has(e.id));
   const ltg = local.tagGraphUpdatedAt||0, rtg = remote.tagGraphUpdatedAt||0;
   return {
-    entries: [...byId.values()],
+    entries: finalEntries,
     tombstones: [...tomMap.values()],
     tagGraph: ltg >= rtg ? local.tagGraph : (remote.tagGraph||local.tagGraph),
     tagGraphUpdatedAt: Math.max(ltg, rtg),
@@ -1819,10 +1835,13 @@ function renderWordsList() {
     if (e.latinOrigin) meta.push(`<span class="text-[#fbbf24] italic">${escapeHtml(e.latinOrigin)}</span>`);
     if (e.englishCognate) meta.push(`<span class="text-[#7dd3fc]">${escapeHtml(e.englishCognate.split(/[\/,]/)[0].trim())}</span>`);
     const tp = tagPills(e);
+    const dupeCount = state.entries.filter(x => (x.word||'').trim().toLowerCase() === (e.word||'').trim().toLowerCase()).length;
     return `<div class="word-item ${active} px-3 py-2 rounded-lg border border-white/5 fade-in" onclick="selectEntry('${e.id}')" ondblclick="dblClickEntry('${e.id}')">
       <div class="flex items-baseline justify-between mb-1 gap-2">
         <div class="flex items-baseline gap-2 min-w-0 flex-wrap">
           <span class="text-base font-bold text-white">${escapeHtml(e.word)}</span>
+          ${(e.version&&e.version>1)?`<span class="text-[8px] px-1 rounded bg-[#fbbf24]/15 text-[#fde68a] border border-[#fbbf24]/30 font-mono">v${e.version}</span>`:''}
+          ${(dupeCount>1&&!e.version)?`<span class="text-[8px] px-1 rounded bg-[#f43f5e]/15 text-[#fda4af] border border-[#f43f5e]/30" title="有 ${dupeCount} 个同名条目，建议合并或标注版本">⚠×${dupeCount}</span>`:''}
           ${e.ipa?`<span class="text-[11px] text-[#7dd3fc] font-mono">${escapeHtml(e.ipa)}</span>`:''}
           ${playButton(e.word,'sm')}
           ${badges(e)}
@@ -1913,6 +1932,7 @@ function renderDetail() {
       <div class="mb-3">
         <div class="flex items-baseline gap-2 flex-wrap">
           <h2 class="text-[28px] font-bold text-white">${escapeHtml(e.word)}</h2>
+          ${(e.version&&e.version>1)?`<span class="text-[11px] px-1.5 py-0.5 rounded-full bg-[#fbbf24]/15 text-[#fde68a] border border-[#fbbf24]/30 font-mono">v${e.version}</span>`:''}
           ${e.ipa?`<span class="text-[14px] text-[#7dd3fc] font-mono">${escapeHtml(e.ipa)}</span>`:''}
           ${playButton(e.word, 'lg')}
           ${e.pos?`<span class="text-[10px] px-1.5 py-0.5 rounded-full ${posBadgeClass(e.pos)} border">${escapeHtml(e.pos)}</span>`:''}
@@ -2239,7 +2259,64 @@ function openAddModal(entry=null) {
 }
 function closeAddModal() { document.getElementById('add-modal').classList.add('hidden'); }
 function editEntry(id) { const e = state.entries.find(x=>x.id===id); if(e) openAddModal(e); }
-function deleteEntry(id) { const e = state.entries.find(x=>x.id===id); if(!e)return; if(!confirm(`删除「${e.word}」？`)) return; state.entries = state.entries.filter(x=>x.id!==id); state.tombstones.push({id, deletedAt:Date.now()}); if(state.selectedEntryId===id) state.selectedEntryId=null; save(); render(); toast(`已删除：${e.word}`,'success'); }
+function deleteEntry(id) {
+  const e = state.entries.find(x=>x.id===id); if(!e)return;
+  if(!confirm(`删除「${e.word}」？\n（可在回收站恢复）`)) return;
+  // 存入回收站（保留完整数据，7天后自动清理）
+  state.trash = state.trash || [];
+  state.trash.unshift({ ...e, deletedAt: Date.now() });
+  state.trash = state.trash.filter(t => Date.now() - (t.deletedAt||0) < 7*24*60*60*1000);  // 只留7天
+  state.entries = state.entries.filter(x=>x.id!==id);
+  state.tombstones.push({id, deletedAt:Date.now()});
+  if(state.selectedEntryId===id) state.selectedEntryId=null;
+  save(); render();
+  toast(`已删除：${e.word}（可在回收站恢复）`,'success');
+}
+// 回收站：恢复词条
+function restoreEntry(trashIdx) {
+  const item = (state.trash||[])[trashIdx]; if(!item) return;
+  state.entries.push({ ...item, updatedAt: Date.now() });
+  delete item.deletedAt;
+  state.trash.splice(trashIdx, 1);
+  state.tombstones = state.tombstones.filter(t => t.id !== item.id);
+  save(); render();
+  toast(`已恢复：${item.word}`,'success');
+}
+// 回收站：彻底删除
+function purgeEntry(trashIdx) {
+  const item = (state.trash||[])[trashIdx]; if(!item) return;
+  if(!confirm(`彻底删除「${item.word}」？此操作不可恢复。`)) return;
+  state.trash.splice(trashIdx, 1);
+  save(); render();
+  toast(`已彻底删除：${item.word}`,'success');
+}
+function openTrash() {
+  const trash = state.trash || [];
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-backdrop';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);';
+  const items = trash.length ? trash.map((t,i)=>{
+    const ago = Math.round((Date.now()-(t.deletedAt||0))/3600000);
+    return `<div class="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/[0.03] border border-white/5">
+      <div class="flex-1"><span class="font-bold text-white">${escapeHtml(t.word)}</span> <span class="text-xs text-slate-500">${escapeHtml((t.meaning||'').slice(0,20))}</span><div class="text-[9px] text-slate-600">${ago>0?ago+'小时前':'刚刚'}删除</div></div>
+      <button onclick="restoreEntry(${i});this.closest('.modal-backdrop').remove();" class="px-2 py-1 text-[10px] rounded bg-[#34d399]/15 border border-[#34d399]/30 text-[#6ee7b7]">↩ 恢复</button>
+      <button onclick="purgeEntry(${i});this.closest('.modal-backdrop').remove();" class="px-2 py-1 text-[10px] rounded bg-[#f43f5e]/10 border border-[#f43f5e]/30 text-[#fda4af]">✕ 彻底删</button>
+    </div>`;
+  }).join('') : '<div class="text-slate-500 text-sm italic text-center py-8">回收站为空</div>';
+  overlay.innerHTML = `<div class="glass rounded-2xl p-6" style="max-width:480px;width:100%;"><div class="flex justify-between items-center mb-3"><h3 class="text-lg font-bold text-white">🗑 回收站（${trash.length}）</h3><button onclick="this.closest('.modal-backdrop').remove()" class="text-slate-400 hover:text-white">✕</button></div><div class="text-[10px] text-slate-500 mb-3">删除的词条保留 7 天，可恢复或彻底删除</div><div style="max-height:55vh;overflow-y:auto" class="space-y-1.5">${items}</div></div>`;
+  document.body.appendChild(overlay);
+}
+// 重复检测：同 word 的条目
+function getDuplicateWords() {
+  const wordMap = new Map();
+  state.entries.forEach(e => {
+    const w = (e.word||'').trim().toLowerCase();
+    if (!w) return;
+    if (!wordMap.has(w)) wordMap.set(w, []);
+    wordMap.get(w).push(e);
+  });
+  return [...wordMap.entries()].filter(([_,arr]) => arr.length > 1);
+}
 // 从某词条解除一个词根/词缀关联（不删词条）。返回该词条解除后是否变孤儿
 function _unlinkRootFrom(e, root) {
   if (e.root === root) {
@@ -2359,11 +2436,22 @@ function saveEntry() {
   if (!word) { toast('请填写单词','error'); return; }
   const tags = document.getElementById('add-tags').value.trim().split(/\s+/).filter(Boolean).map(_ingestTag);
   const existing = id ? state.entries.find(e=>e.id===id) : null;
+  // 新增时检测同词已有几版，提示是否新增版本
+  let version = existing?.version || 1;
+  if (!id) {
+    const dupes = state.entries.filter(e => (e.word||'').trim().toLowerCase() === word.toLowerCase());
+    if (dupes.length > 0) {
+      const maxV = Math.max(...dupes.map(e=>e.version||1));
+      if (!confirm(`「${word}」已有 ${dupes.length} 个条目（最高版本 v${maxV}）。\n是否新增为版本 v${maxV+1}？\n\n点「取消」则不保存。`)) return;
+      version = maxV + 1;
+    }
+  }
   // 展开 existing 以保留表单未覆盖的字段（cognates/verbClass/regularity/register/region/frequency…），避免编辑丢数据
   const entry = {
     ...(existing || {}),
     id: id || uid(),
     word,
+    version,
     pos: document.getElementById('add-pos').value,
     ipa: document.getElementById('add-ipa').value.trim(),
     gender: document.getElementById('add-gender').value,
