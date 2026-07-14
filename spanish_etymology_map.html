@@ -1690,7 +1690,12 @@ function emptyHint(title, sub='') { return `<div class="empty-hint"><div class="
 // save() 钩到 cloud sync
 const _origSave = save;
 let _saveReason = 'edit';   // 'edit' | 'merge' | 'ai' — 标记本次 save 的来源（用于状态栏显示本地文件修改原因）
-save = function() { _origSave(); if (fileSyncState.handle) { fileSyncState.lastReason = _saveReason; syncToFileDebounced(); } scheduleCloudSync(); };
+save = function() {
+  _origSave();
+  if (fileSyncState.handle) { fileSyncState.lastReason = _saveReason; syncToFileDebounced(); }
+  // ⚠ 合并产生的 save 不触发云同步，否则 pull→merge→save→push→pull 无限循环
+  if (_saveReason !== 'merge') scheduleCloudSync();
+};
 
 // =========================================================================
 // RENDER · 字母导图
