@@ -359,6 +359,7 @@
       <label class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300 cursor-pointer">↑ 导入<input type="file" accept=".json" onchange="importJSON(event)" class="hidden"></label>
       <button onclick="closeSettingsModal(); confirmReset()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 hover:bg-[#f43f5e]/20 border border-white/10 text-slate-400 hover:text-[#fda4af]">↺ 重置</button>
       <button onclick="closeSettingsModal(); openTrash()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300">🗑 回收站</button>
+      <button onclick="closeSettingsModal(); deduplicateLocal()" class="px-2 py-1 text-[10px] rounded-md bg-white/5 border border-white/10 text-slate-300" title="合并同词同版本的重复条目">🔀 去重</button>
     </div>
     <div class="flex gap-1 mb-4 bg-white/5 rounded-lg p-1">
       <button id="tab-btn-primary" onclick="switchLLMTab('primary')" class="flex-1 px-3 py-1.5 text-xs rounded-md font-semibold transition">🧠 主 LLM <span class="text-[10px] opacity-70">(新词条)</span></button>
@@ -2316,6 +2317,55 @@ function getDuplicateWords() {
     wordMap.get(w).push(e);
   });
   return [...wordMap.entries()].filter(([_,arr]) => arr.length > 1);
+}
+// 手动去重：按 (word, version) 合并，同词同版本取 updatedAt 新的
+function deduplicateLocal() {
+  const dupes = getDuplicateWords();
+  // 找出同词同版本的（真正需要合并的重复）
+  const toMerge = [];
+  dupes.forEach(([word, arr]) => {
+    const vMap = new Map();
+    arr.forEach(e => {
+      const v = e.version || 1;
+      if (!vMap.has(v)) vMap.set(v, []);
+      vMap.get(v).push(e);
+    });
+    vMap.forEach((entries, v) => {
+      if (entries.length > 1) toMerge.push({ word, version: v, entries });
+    });
+  });
+  if (!toMerge.length) { toast('没有同词同版本的重复条目','info'); return; }
+  const totalRemove = toMerge.reduce((s,d) => s + d.entries.length - 1, 0);
+  // 预览弹窗
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-backdrop';
+  overlay.style.cssText = 'position:fixed;inset:0;z-index:110;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,0.7);backdrop-filter:blur(6px);';
+  const rows = toMerge.map(d => {
+    const keeper = d.entries.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
+    const removed = d.entries.filter(e => e.id !== keeper.id);
+    return `<div class="px-2 py-1.5 rounded bg-white/[0.03] border border-white/5">
+      <div class="text-xs"><span class="font-bold text-white">${escapeHtml(keeper.word)}</span> <span class="text-slate-500">v${d.version}</span> → 保留 <span class="text-[#6ee7b7]">${escapeHtml((keeper.meaning||'').slice(0,20))}</span></div>
+      <div class="text-[10px] text-[#fda4af]">删除 ${removed.length} 个重复: ${removed.map(e=>escapeHtml((e.meaning||'').slice(0,15)||e.id.slice(-6))).join(' / ')}</div>
+    </div>`;
+  }).join('');
+  overlay.innerHTML = `<div class="glass rounded-2xl p-6" style="max-width:520px;width:100%;"><div class="flex justify-between items-center mb-3"><h3 class="text-lg font-bold text-white">🔀 去重预览</h3><button onclick="this.closest('.modal-backdrop').remove()" class="text-slate-400 hover:text-white">✕</button></div><div class="text-xs text-slate-400 mb-2">发现 ${toMerge.length} 组同词同版本重复，将删除 ${totalRemove} 个冗余条目（每组保留 updatedAt 最新的）：</div><div style="max-height:50vh;overflow-y:auto" class="space-y-1 mb-3">${rows}</div><div class="flex gap-2 justify-end"><button onclick="this.closest('.modal-backdrop').remove()" class="px-4 py-2 text-sm rounded-lg bg-white/5 border border-white/10 text-slate-300">取消</button><button onclick="applyDedup()" class="px-4 py-2 text-sm rounded-lg bg-[#38bdf8] text-slate-900 font-semibold">确认去重（删 ${totalRemove} 条）</button></div></div>`;
+  document.body.appendChild(overlay);
+  // 保存待去重数据供 applyDedup 使用
+  window._dedupData = toMerge;
+}
+function applyDedup() {
+  const data = window._dedupData || [];
+  const removeIds = new Set();
+  data.forEach(d => {
+    const keeper = d.entries.sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
+    d.entries.forEach(e => { if (e.id !== keeper.id) removeIds.add(e.id); });
+  });
+  const before = state.entries.length;
+  state.entries = state.entries.filter(e => !removeIds.has(e.id));
+  const removed = before - state.entries.length;
+  document.querySelectorAll('.modal-backdrop').forEach(el => { if (el.style.zIndex === '110') el.remove(); });
+  save(); render();
+  toast(`✓ 已去重：删除 ${removed} 个冗余条目（${before} → ${state.entries.length}）`,'success');
 }
 // 从某词条解除一个词根/词缀关联（不删词条）。返回该词条解除后是否变孤儿
 function _unlinkRootFrom(e, root) {
